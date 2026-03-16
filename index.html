@@ -15,6 +15,9 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛅</text></svg>">
+<!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
 <style>
   /* Fonts loaded via <link> tag in <head> */
 
@@ -322,10 +325,16 @@
 <!-- ══ WAITING ══ -->
 <div id="screen-waiting" class="screen">
   <div class="waiting-title">Waiting for players... ☁️</div>
-  <div class="room-code-box">
-    <p>Share this code</p>
-    <div class="code" id="displayRoomCode">ABCD</div>
+
+  <!-- Share link — tap to copy or share -->
+  <div style="background:rgba(255,255,255,0.15);border-radius:16px;padding:14px 16px;width:100%;max-width:380px;text-align:center;">
+    <p style="color:rgba(255,255,255,0.8);font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:8px;">📤 Share this link to invite players</p>
+    <a id="shareLink" href="#" onclick="copyShareLink(event)"
+       style="color:#fff;font-weight:800;font-size:13px;word-break:break-all;text-decoration:underline;display:block;margin-bottom:8px;">#</a>
+    <button onclick="copyShareLink(event)" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 16px;border-radius:20px;font-family:Nunito,sans-serif;font-weight:700;font-size:13px;cursor:pointer;">📋 Copy Link</button>
+    <p style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:8px;">Or share room code: <strong id="displayRoomCode" style="letter-spacing:3px;color:#fff;"></strong></p>
   </div>
+
   <div class="players-list">
     <h3>Players (<span id="playerCount">0</span>/8)</h3>
     <div id="playersList"></div>
@@ -893,6 +902,20 @@ function fanfare() {
 }
 
 // ── Init ──
+function copyShareLink(e) {
+  if (e) e.preventDefault();
+  var link = document.getElementById('shareLink').href;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(link).then(function(){ toast('📋 Link copied! Send it to your friends.'); });
+  } else {
+    // Fallback
+    var ta = document.createElement('textarea');
+    ta.value = link; document.body.appendChild(ta); ta.select();
+    document.execCommand('copy'); document.body.removeChild(ta);
+    toast('📋 Link copied!');
+  }
+}
+
 window.addEventListener('DOMContentLoaded', function() {
 
   // Portrait dimensions — measured once, never again
@@ -1022,6 +1045,784 @@ function updateKbDisplay() {
   disp.innerHTML = (kbText || '') + '<span style="opacity:0.7;animation:blink 1s infinite;">|</span>';
   document.getElementById('kbCount').textContent = kbText.length + '/50';
 }
+</script>
+</body>
+</html><script>
+// ══════════════════════════════════════════════════════
+//  FIREBASE CONFIG
+// ══════════════════════════════════════════════════════
+const firebaseConfig = {
+  apiKey: "AIzaSyDJVR9ILWinP28OMQSvjkuXpbZfiJoAi2o",
+  authDomain: "cloud-watchers.firebaseapp.com",
+  databaseURL: "https://cloud-watchers-default-rtdb.firebaseio.com",
+  projectId: "cloud-watchers",
+  storageBucket: "cloud-watchers.firebasestorage.app",
+  messagingSenderId: "731465985391",
+  appId: "1:731465985391:web:8c9c47d48852e51a768c9a",
+  measurementId: "G-RPX62M62D1"
+};
+firebase.initializeApp(firebaseConfig);
+var db = firebase.database();
+
+// ══════════════════════════════════════════════════════
+//  CLOUD IMAGES
+// ══════════════════════════════════════════════════════
+const CLOUD_IMAGES = [
+  "https://images.unsplash.com/photo-1516912481808-3406841bd33c?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1501630834273-4b5604d2ee31?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1504608524841-42584120d693?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1419242902214-272b3f66ee7a?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1470252649378-9c29740c9fa8?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1492011221367-f47e3ccd77a0?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1534088568595-a066f410bcda?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1561553590-267fc716698a?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1505533321630-975218a5f66f?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1499346030926-9a72daac6c63?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1463697215893-e9cd3e8a40f4?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1513002749550-c59d786b8e6c?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1536514498073-50e69d39c6cf?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1483728642387-6c3bdd6c93e5?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1444703686981-a3abbc4d4fe3?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1432405972618-c60b0225b8f9?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1453928582365-b6ad33cbcf64?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80&fit=crop",
+  "https://images.unsplash.com/photo-1611928482473-7b27d24eab80?w=800&q=80&fit=crop",
+];
+
+const AVATARS = ['🐻','🦊','🐼','🐨','🦁','🐯','🐸','🦋','🐬','🦄'];
+const AV_COLORS = ['#FF6B6B','#FFD166','#06D6A0','#74B9FF','#C77DFF','#FF9F43','#1dd1a1','#ff6b81','#54a0ff','#5f27cd'];
+
+// ══════════════════════════════════════════════════════
+//  LOCAL PLAYER STATE
+// ══════════════════════════════════════════════════════
+var ME = {
+  name: '', avatar: '', color: '', roomCode: '', isHost: false, playerId: ''
+};
+
+// Generate a unique player ID
+function genId() {
+  return Math.random().toString(36).substr(2,9);
+}
+function randCode() {
+  return Math.random().toString(36).substr(2,6).toUpperCase();
+}
+
+// ══════════════════════════════════════════════════════
+//  SCREEN / UI HELPERS
+// ══════════════════════════════════════════════════════
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(function(s) { s.classList.remove('active'); });
+  document.getElementById('screen-' + id).classList.add('active');
+  if (id === 'game') { requestAnimationFrame(function(){ requestAnimationFrame(resizeCanvas); }); }
+}
+function toast(msg, ms) {
+  ms = ms || 2500;
+  var t = document.getElementById('toast');
+  t.textContent = msg; t.classList.add('show');
+  setTimeout(function(){ t.classList.remove('show'); }, ms);
+}
+
+// ══════════════════════════════════════════════════════
+//  LOBBY — HOST
+// ══════════════════════════════════════════════════════
+function hostGame() {
+  var name = document.getElementById('playerName').value.trim();
+  if (!name) { toast('✍️ Enter your name first!'); return; }
+
+  var idx = Math.floor(Math.random() * AVATARS.length);
+  ME.name = name;
+  ME.avatar = AVATARS[idx];
+  ME.color = AV_COLORS[idx];
+  ME.isHost = true;
+  ME.playerId = genId();
+  ME.roomCode = randCode();
+
+  // Write room to Firebase
+  var roomRef = db.ref('rooms/' + ME.roomCode);
+  roomRef.set({
+    host: ME.playerId,
+    status: 'waiting',     // waiting | playing | voting | results | gameover
+    round: 0,
+    totalRounds: 10,
+    cloudIndex: 0,
+    usedClouds: {},
+    scores: {},
+    createdAt: firebase.database.ServerValue.TIMESTAMP
+  });
+
+  // Add host as first player
+  roomRef.child('players/' + ME.playerId).set({
+    name: ME.name, avatar: ME.avatar, color: ME.color, joinedAt: Date.now()
+  });
+
+  // Build share URL
+  var shareUrl = window.location.origin + window.location.pathname + '?room=' + ME.roomCode;
+  ME.shareUrl = shareUrl;
+
+  listenToRoom();
+  showWaiting();
+}
+
+// ══════════════════════════════════════════════════════
+//  LOBBY — JOIN (via URL or manual code)
+// ══════════════════════════════════════════════════════
+function joinGame() {
+  var name = document.getElementById('playerName').value.trim();
+  var code = (document.getElementById('roomCode').value.trim()).toUpperCase();
+  if (!name) { toast('✍️ Enter your name first!'); return; }
+  if (!code) { toast('🔑 Enter a room code'); return; }
+  doJoin(name, code);
+}
+
+function doJoin(name, code) {
+  var idx = Math.floor(Math.random() * AVATARS.length);
+  ME.name = name;
+  ME.avatar = AVATARS[idx];
+  ME.color = AV_COLORS[idx];
+  ME.isHost = false;
+  ME.playerId = genId();
+  ME.roomCode = code;
+
+  // Check room exists
+  db.ref('rooms/' + code).once('value', function(snap) {
+    if (!snap.exists()) {
+      toast('❌ Room not found. Check the code.'); return;
+    }
+    var room = snap.val();
+    if (room.status !== 'waiting') {
+      toast('⚠️ Game already in progress!'); return;
+    }
+
+    // Add player
+    db.ref('rooms/' + code + '/players/' + ME.playerId).set({
+      name: ME.name, avatar: ME.avatar, color: ME.color, joinedAt: Date.now()
+    });
+
+    listenToRoom();
+    showWaiting();
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  AUTO-JOIN FROM URL PARAM ?room=XXXX
+// ══════════════════════════════════════════════════════
+function checkUrlRoom() {
+  var params = new URLSearchParams(window.location.search);
+  var roomCode = params.get('room');
+  if (!roomCode) return;
+
+  // Pre-fill the room code and show a prompt for name
+  document.getElementById('roomCode').value = roomCode.toUpperCase();
+  // Scroll to name field
+  document.getElementById('playerName').focus();
+  toast('✅ Room ' + roomCode.toUpperCase() + ' found! Enter your name to join.', 4000);
+}
+
+// ══════════════════════════════════════════════════════
+//  WAITING ROOM
+// ══════════════════════════════════════════════════════
+function showWaiting() {
+  document.getElementById('displayRoomCode').textContent = ME.roomCode;
+
+  // Show share link
+  var shareUrl = window.location.origin + window.location.pathname + '?room=' + ME.roomCode;
+  var shareLinkEl = document.getElementById('shareLink');
+  if (shareLinkEl) {
+    shareLinkEl.textContent = shareUrl;
+    shareLinkEl.href = shareUrl;
+  }
+
+  if (ME.isHost) {
+    document.getElementById('hostStartBtn').style.display = 'block';
+    document.getElementById('waitingMsg').style.display = 'none';
+  } else {
+    document.getElementById('hostStartBtn').style.display = 'none';
+    document.getElementById('waitingMsg').style.display = 'block';
+  }
+  showScreen('waiting');
+}
+
+// ══════════════════════════════════════════════════════
+//  FIREBASE ROOM LISTENER — the heart of multiplayer
+// ══════════════════════════════════════════════════════
+var roomRef;
+var currentRound = 0;
+var currentStatus = 'waiting';
+var localScores = {};
+
+function listenToRoom() {
+  roomRef = db.ref('rooms/' + ME.roomCode);
+
+  // Listen to player list changes
+  roomRef.child('players').on('value', function(snap) {
+    var players = snap.val() || {};
+    renderWaitingPlayers(players);
+  });
+
+  // Listen to room status changes
+  roomRef.on('value', function(snap) {
+    if (!snap.exists()) return;
+    var room = snap.val();
+
+    // Status change — drive screen transitions
+    if (room.status !== currentStatus) {
+      currentStatus = room.status;
+
+      if (room.status === 'playing') {
+        startRound(room);
+      } else if (room.status === 'voting') {
+        goToVoting(room);
+      } else if (room.status === 'results') {
+        showRoundResults(room);
+      } else if (room.status === 'gameover') {
+        showGameOver(room);
+      }
+    }
+
+    // Update scores strip if in game
+    if (room.status === 'playing' && room.scores) {
+      localScores = room.scores;
+      renderScoresStrip(snap.val().players || {});
+    }
+  });
+}
+
+function renderWaitingPlayers(players) {
+  var list = Object.values(players).sort(function(a,b){ return a.joinedAt - b.joinedAt; });
+  document.getElementById('playerCount').textContent = list.length;
+  document.getElementById('playersList').innerHTML = list.map(function(p, i) {
+    var isMe = (p.name === ME.name);
+    return '<div class="player-chip">' +
+      '<div class="player-avatar" style="background:' + p.color + '">' + p.avatar + '</div>' +
+      p.name + (isMe ? ' (You)' : '') +
+      (i === 0 ? '<span class="host-badge">Host</span>' : '') +
+      '</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  HOST STARTS GAME
+// ══════════════════════════════════════════════════════
+function startGame() {
+  if (!ME.isHost) return;
+  var cloudIdx = Math.floor(Math.random() * CLOUD_IMAGES.length);
+  roomRef.update({
+    status: 'playing',
+    round: 1,
+    cloudIndex: cloudIdx,
+    roundStartTime: firebase.database.ServerValue.TIMESTAMP,
+    submissions: null,
+    votes: null
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  ROUND START
+// ══════════════════════════════════════════════════════
+function startRound(room) {
+  // Reset local state
+  kbText = '';
+  var descSpan = document.getElementById('descriptionText');
+  if (descSpan) { descSpan.textContent = 'Tap to describe what you see...'; descSpan.style.opacity = '0.5'; }
+  document.getElementById('charCount').textContent = '0';
+  document.getElementById('submitBtn').disabled = false;
+  document.getElementById('submitBtn').textContent = '✅ Submit';
+  clearCanvas();
+
+  document.getElementById('roundNum').textContent = room.round;
+
+  // Load cloud image
+  var img = document.getElementById('cloudImage');
+  img.onerror = function() {
+    var next = CLOUD_IMAGES[Math.floor(Math.random() * CLOUD_IMAGES.length)];
+    img.src = next;
+  };
+  img.src = CLOUD_IMAGES[room.cloudIndex] || CLOUD_IMAGES[0];
+
+  renderScoresStrip(room.players || {});
+  showScreen('game');
+
+  // Start local 3-minute countdown
+  startTimer(room.roundStartTime, function() {
+    // Time's up — auto submit if not done
+    if (!document.getElementById('submitBtn').disabled) {
+      submitDrawing(true);
+    }
+  });
+}
+
+function renderScoresStrip(players) {
+  document.getElementById('scoresStrip').innerHTML = Object.values(players).map(function(p) {
+    var score = (localScores && localScores[p.name]) || 0;
+    var isMe = p.name === ME.name;
+    return '<div class="score-pill">' +
+      '<span>' + p.avatar + '</span>' +
+      '<span>' + (isMe ? 'You' : p.name) + '</span>' +
+      '<span class="score-num">' + score + '</span>' +
+      '</div>';
+  }).join('');
+}
+
+// ══════════════════════════════════════════════════════
+//  TIMER
+// ══════════════════════════════════════════════════════
+var timerInterval;
+function startTimer(serverStartTime, onExpire) {
+  clearInterval(timerInterval);
+  var ROUND_SECS = 180;
+  var circ = document.getElementById('timerCircle');
+  var C = 94.2;
+
+  timerInterval = setInterval(function() {
+    var now = Date.now();
+    var elapsed = Math.floor((now - serverStartTime) / 1000);
+    var left = Math.max(0, ROUND_SECS - elapsed);
+    var m = Math.floor(left / 60), s = left % 60;
+    document.getElementById('timerText').textContent = m + ':' + (s < 10 ? '0' : '') + s;
+    circ.style.strokeDashoffset = C * (1 - left / ROUND_SECS);
+    circ.style.stroke = left <= 30 ? '#FF6B6B' : '#FFD166';
+    if (left <= 0) {
+      clearInterval(timerInterval);
+      if (onExpire) onExpire();
+    }
+  }, 500);
+}
+
+// ══════════════════════════════════════════════════════
+//  SUBMIT DRAWING
+// ══════════════════════════════════════════════════════
+function submitDrawing(auto) {
+  if (document.getElementById('submitBtn').disabled) return;
+  var desc = (typeof kbText !== 'undefined' ? kbText : '').trim();
+  if (!desc && !auto) { toast('💬 Add a description!'); return; }
+
+  document.getElementById('submitBtn').disabled = true;
+  document.getElementById('submitBtn').textContent = '✅ Submitted!';
+
+  // Capture drawing
+  var canvas = document.getElementById('drawCanvas');
+  var drawingImg = canvas.toDataURL('image/png');
+
+  // Write submission to Firebase
+  roomRef.child('submissions/' + ME.playerId).set({
+    name: ME.name,
+    avatar: ME.avatar,
+    color: ME.color,
+    description: desc || '(no description)',
+    drawing: drawingImg
+  });
+
+  toast('🎨 Submitted! Waiting for others...');
+
+  // Check if all players have submitted — host advances to voting
+  if (ME.isHost) {
+    checkAllSubmitted();
+  }
+}
+
+function checkAllSubmitted() {
+  roomRef.once('value', function(snap) {
+    var room = snap.val();
+    var players = Object.keys(room.players || {});
+    var submissions = Object.keys(room.submissions || {});
+    if (submissions.length >= players.length) {
+      // All submitted — move to voting
+      roomRef.update({ status: 'voting' });
+    } else {
+      // Check again in 3 seconds
+      setTimeout(checkAllSubmitted, 3000);
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  VOTING
+// ══════════════════════════════════════════════════════
+function goToVoting(room) {
+  clearInterval(timerInterval);
+  var subs = room.submissions || {};
+  var grid = document.getElementById('submissionsGrid');
+  grid.innerHTML = Object.values(subs).map(function(s) {
+    var isMe = (s.name === ME.name);
+    return '<div class="submission-card ' + (isMe ? 'my-card' : '') + '" id="sub-' + s.name + '" onclick="selectVote(\'' + s.name + '\')">' +
+      '<div class="submission-top">' +
+        '<div class="sub-avatar" style="background:' + s.color + '">' + s.avatar + '</div>' +
+        '<div class="sub-player-name">' + s.name + '</div>' +
+        (isMe ? '<span class="my-tag">You</span>' : '') +
+      '</div>' +
+      '<div class="sub-canvas-preview" style="height:120px;">' +
+        (s.drawing ? '<img src="' + s.drawing + '" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;">' : '<span style="font-size:28px;opacity:0.4;">✏️</span>') +
+      '</div>' +
+      '<div class="sub-description">' + s.description + '</div>' +
+      (!isMe ? '<div class="vote-btn-row"><button class="btn btn-vote" onclick="event.stopPropagation();castVote(\'' + s.name + '\')">👆 Vote for ' + s.name + '!</button></div>' : '') +
+      '</div>';
+  }).join('');
+  showScreen('voting');
+}
+
+function selectVote(name) {
+  if (name === ME.name) return;
+  document.querySelectorAll('.submission-card').forEach(function(c){ c.classList.remove('selected'); });
+  var card = document.getElementById('sub-' + name);
+  if (card) card.classList.add('selected');
+}
+
+function castVote(name) {
+  // Write vote to Firebase
+  roomRef.child('votes/' + ME.playerId).set({ votedFor: name });
+  toast('✅ Voted for ' + name + '!');
+  document.querySelectorAll('.btn-vote').forEach(function(b){ b.disabled = true; b.style.opacity = '0.5'; });
+
+  // Host tallies once all votes are in
+  if (ME.isHost) { checkAllVoted(); }
+}
+
+function checkAllVoted() {
+  roomRef.once('value', function(snap) {
+    var room = snap.val();
+    var players = Object.keys(room.players || {});
+    var votes = Object.keys(room.votes || {});
+    if (votes.length >= players.length) {
+      tallyAndAdvance(room);
+    } else {
+      setTimeout(checkAllVoted, 3000);
+    }
+  });
+}
+
+function tallyAndAdvance(room) {
+  var votes = room.votes || {};
+  var tally = {};
+  Object.values(votes).forEach(function(v) {
+    tally[v.votedFor] = (tally[v.votedFor] || 0) + 1;
+  });
+
+  // Update scores
+  var scores = room.scores || {};
+  Object.keys(tally).forEach(function(name) {
+    scores[name] = (scores[name] || 0) + tally[name];
+  });
+
+  // Find winner
+  var winner = Object.keys(tally).reduce(function(a,b){ return tally[a] > tally[b] ? a : b; }, Object.keys(tally)[0]);
+
+  var nextRound = room.round + 1;
+  var isLast = nextRound > room.totalRounds;
+
+  roomRef.update({
+    status: 'results',
+    scores: scores,
+    roundWinner: winner,
+    roundTally: tally,
+    votes: null
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  ROUND RESULTS
+// ══════════════════════════════════════════════════════
+function showRoundResults(room) {
+  var winner = room.roundWinner || '';
+  var tally = room.roundTally || {};
+  var scores = room.scores || {};
+  var players = room.players || {};
+
+  document.getElementById('winnerName').textContent = winner;
+  // Find winner's description
+  var winnerSub = room.submissions ? room.submissions[Object.keys(room.submissions).find(function(k){ return room.submissions[k].name === winner; })] : null;
+  document.getElementById('winnerDesc').textContent = winnerSub ? winnerSub.description : '';
+  document.getElementById('winnerVotes').textContent = (tally[winner] || 0) + ' vote' + ((tally[winner] || 0) !== 1 ? 's' : '');
+
+  // Scores list
+  var sorted = Object.values(players).sort(function(a,b){ return (scores[b.name]||0) - (scores[a.name]||0); });
+  var max = Math.max.apply(null, sorted.map(function(p){ return scores[p.name]||0; }).concat([1]));
+  var ranks = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
+  document.getElementById('scoresList').innerHTML = sorted.map(function(p,i) {
+    var isMe = p.name === ME.name;
+    return '<div class="score-row">' +
+      '<div class="score-rank">' + (ranks[i]||i+1) + '</div>' +
+      '<div style="font-size:17px">' + p.avatar + '</div>' +
+      '<div class="score-player">' + p.name + (isMe?' (You)':'') + '</div>' +
+      '<div class="score-bar-wrap"><div class="score-bar" style="width:' + (((scores[p.name]||0)/max)*100) + '%"></div></div>' +
+      '<div class="score-total">' + (scores[p.name]||0) + '</div>' +
+      '</div>';
+  }).join('');
+
+  // Round dots
+  document.getElementById('roundIndicator').innerHTML = Array.from({length:10}, function(_,i) {
+    return '<div class="round-dot ' + (i < room.round-1 ? 'done' : i === room.round-1 ? 'current' : '') + '"></div>';
+  }).join('');
+
+  showScreen('results');
+  if ((tally[winner]||0) > 0) { launchFireworks('fireworksContainer'); fanfare(); }
+}
+
+function nextRound() {
+  if (!ME.isHost) return; // only host advances
+  roomRef.once('value', function(snap) {
+    var room = snap.val();
+    var nextRoundNum = room.round + 1;
+    if (nextRoundNum > room.totalRounds) {
+      roomRef.update({ status: 'gameover' });
+    } else {
+      // Pick next cloud
+      var used = room.usedClouds ? Object.values(room.usedClouds) : [];
+      var available = CLOUD_IMAGES.filter(function(c){ return used.indexOf(c) === -1; });
+      var pool = available.length > 0 ? available : CLOUD_IMAGES;
+      var cloudIdx = CLOUD_IMAGES.indexOf(pool[Math.floor(Math.random()*pool.length)]);
+      var newUsed = room.usedClouds || {};
+      newUsed[nextRoundNum] = CLOUD_IMAGES[cloudIdx];
+      roomRef.update({
+        status: 'playing',
+        round: nextRoundNum,
+        cloudIndex: cloudIdx,
+        usedClouds: newUsed,
+        roundStartTime: firebase.database.ServerValue.TIMESTAMP,
+        submissions: null,
+        votes: null,
+        roundWinner: null,
+        roundTally: null
+      });
+    }
+  });
+}
+
+// ══════════════════════════════════════════════════════
+//  GAME OVER
+// ══════════════════════════════════════════════════════
+function showGameOver(room) {
+  var scores = room.scores || {};
+  var players = Object.values(room.players || {});
+  var sorted = players.sort(function(a,b){ return (scores[b.name]||0)-(scores[a.name]||0); });
+  var champ = sorted[0] || {name:'', avatar:'', color:''};
+  document.getElementById('championName').textContent = champ.avatar + ' ' + champ.name;
+  document.getElementById('championScore').textContent = 'Total: ' + (scores[champ.name]||0) + ' votes • Cloud Champion! 🌤️';
+
+  var max = Math.max.apply(null, sorted.map(function(p){ return scores[p.name]||0; }).concat([1]));
+  var ranks = ['🥇','🥈','🥉','4️⃣','5️⃣','6️⃣','7️⃣','8️⃣'];
+  document.getElementById('finalScoresList').innerHTML = sorted.map(function(p,i) {
+    var isMe = p.name === ME.name;
+    return '<div class="score-row">' +
+      '<div class="score-rank">' + (ranks[i]||i+1) + '</div>' +
+      '<div style="font-size:17px">' + p.avatar + '</div>' +
+      '<div class="score-player">' + p.name + (isMe?' (You)':'') + '</div>' +
+      '<div class="score-bar-wrap"><div class="score-bar" style="width:' + (((scores[p.name]||0)/max)*100) + '%"></div></div>' +
+      '<div class="score-total">' + (scores[p.name]||0) + '</div>' +
+      '</div>';
+  }).join('');
+
+  showScreen('gameover');
+  launchFireworks('fireworksContainer2');
+  // Clean up room after 60 seconds
+  setTimeout(function(){ roomRef.remove(); }, 60000);
+}
+
+function playAgain() {
+  // Remove old room and go back to lobby
+  if (roomRef) roomRef.remove();
+  showScreen('lobby');
+}
+
+// ══════════════════════════════════════════════════════
+//  CANVAS
+// ══════════════════════════════════════════════════════
+var drawing = false, lx = 0, ly = 0;
+var strokeHistory = [];
+var currentStroke = null;
+
+function resizeCanvas() {
+  var area = document.getElementById('cloudDrawArea');
+  var canvas = document.getElementById('drawCanvas');
+  var w = area.clientWidth, h = area.clientHeight;
+  if (!w || !h) return;
+  canvas.width = w; canvas.height = h;
+  redrawStrokes();
+}
+
+function getCtx() { return document.getElementById('drawCanvas').getContext('2d'); }
+
+function redrawStrokes() {
+  var canvas = document.getElementById('drawCanvas');
+  var ctx = getCtx();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  strokeHistory.forEach(function(stroke) {
+    if (stroke.points.length < 2) return;
+    ctx.strokeStyle = stroke.color; ctx.lineWidth = 8;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath();
+    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
+    stroke.points.slice(1).forEach(function(pt){ ctx.lineTo(pt.x, pt.y); });
+    ctx.stroke();
+  });
+}
+
+function getXY(e, canvas) {
+  var r = canvas.getBoundingClientRect();
+  var src = e.touches ? e.touches[0] : e;
+  return [(src.clientX-r.left)*(canvas.width/r.width), (src.clientY-r.top)*(canvas.height/r.height)];
+}
+
+function initCanvas() {
+  var canvas = document.getElementById('drawCanvas');
+  var G = { drawingColor: '#FF3B3B' }; // local color state
+
+  canvas.addEventListener('mousedown', function(e) {
+    if (e.touches && e.touches.length > 1) return;
+    e.preventDefault(); drawing = true;
+    var pos = getXY(e, canvas); lx = pos[0]; ly = pos[1];
+    currentStroke = { color: currentColor, width: 8, points: [{x:lx,y:ly}] };
+  });
+  canvas.addEventListener('mousemove', function(e) {
+    if (e.touches && e.touches.length > 1) { drawing = false; return; }
+    e.preventDefault(); if (!drawing || !currentStroke) return;
+    var pos = getXY(e, canvas); var x=pos[0],y=pos[1];
+    var ctx = getCtx();
+    ctx.strokeStyle = currentColor; ctx.lineWidth = 8;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(x,y); ctx.stroke();
+    currentStroke.points.push({x:x,y:y}); lx=x; ly=y;
+    var hint = document.getElementById('canvasHint');
+    if (hint) hint.style.opacity = '0';
+  });
+  var endDraw = function() {
+    if (drawing && currentStroke && currentStroke.points.length > 1) strokeHistory.push(currentStroke);
+    drawing = false; currentStroke = null;
+  };
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', function(e){ canvas.dispatchEvent(new MouseEvent('mousedown', {clientX:e.touches[0].clientX,clientY:e.touches[0].clientY})); e.preventDefault(); }, {passive:false});
+  canvas.addEventListener('touchmove', function(e){ canvas.dispatchEvent(new MouseEvent('mousemove', {clientX:e.touches[0].clientX,clientY:e.touches[0].clientY})); e.preventDefault(); }, {passive:false});
+  canvas.addEventListener('touchend', endDraw);
+}
+
+var currentColor = '#FF3B3B';
+function setColor(el) {
+  document.querySelectorAll('.color-btn').forEach(function(b){ b.classList.remove('active'); });
+  el.classList.add('active'); currentColor = el.dataset.color;
+}
+function undoLastStroke() {
+  if (!strokeHistory.length) { toast('Nothing to undo!'); return; }
+  strokeHistory.pop(); redrawStrokes();
+  if (!strokeHistory.length) { var h=document.getElementById('canvasHint'); if(h)h.style.opacity='1'; }
+  toast('↩️ Last stroke removed');
+}
+function clearCanvas() {
+  strokeHistory = []; currentStroke = null;
+  var canvas = document.getElementById('drawCanvas');
+  if (canvas.getContext) canvas.getContext('2d').clearRect(0,0,canvas.width,canvas.height);
+  var h = document.getElementById('canvasHint'); if(h) h.style.opacity='1';
+}
+
+// ══════════════════════════════════════════════════════
+//  CUSTOM KEYBOARD
+// ══════════════════════════════════════════════════════
+var kbText = '';
+var kbUpperCase = true;
+var kbShowNums = false;
+
+function openKeyboard() {
+  kbText = '';
+  var span = document.getElementById('descriptionText');
+  if (span && span.textContent !== 'Tap to describe what you see...') {
+    kbText = span.textContent;
+  }
+  updateKbDisplay();
+  document.getElementById('customKeyboard').style.display = 'block';
+}
+function closeKeyboard() {
+  document.getElementById('customKeyboard').style.display = 'none';
+  var span = document.getElementById('descriptionText');
+  span.style.opacity = kbText ? '1' : '0.5';
+  span.textContent = kbText || 'Tap to describe what you see...';
+  document.getElementById('charCount').textContent = kbText.length;
+}
+function kbType(char) {
+  if (kbText.length >= 50) return;
+  var c = kbUpperCase ? char.toUpperCase() : char.toLowerCase();
+  if (char === ' ' || char.match(/[0-9!?,.\-]/)) c = char;
+  kbText += c;
+  if (kbUpperCase && char !== ' ' && kbText.length === 1) { kbUpperCase = false; updateShiftBtn(); }
+  updateKbDisplay();
+}
+function kbBackspace() { kbText = kbText.slice(0,-1); updateKbDisplay(); }
+function kbToggleCase() { kbUpperCase = !kbUpperCase; updateShiftBtn(); }
+function kbToggleNumbers() {
+  kbShowNums = !kbShowNums;
+  document.getElementById('kbNumRow').style.display = kbShowNums ? 'flex' : 'none';
+  document.getElementById('kbNumBtn').style.background = kbShowNums ? '#2563eb' : '#2a2a3e';
+}
+function updateShiftBtn() { document.getElementById('kbShiftBtn').style.background = kbUpperCase ? '#2563eb' : '#2a2a3e'; }
+function updateKbDisplay() {
+  var disp = document.getElementById('kbDisplay');
+  disp.innerHTML = (kbText||'') + '<span style="opacity:0.7;">|</span>';
+  document.getElementById('kbCount').textContent = kbText.length + '/50';
+}
+
+// ══════════════════════════════════════════════════════
+//  FIREWORKS & FANFARE
+// ══════════════════════════════════════════════════════
+function launchFireworks(id) {
+  var c = document.getElementById(id); c.innerHTML = '';
+  var e = ['🎆','✨','🌟','💥','🎇','⭐','🌈','🎉'];
+  for (var i=0; i<20; i++) (function(i){
+    setTimeout(function(){
+      var fw = document.createElement('div'); fw.className='firework';
+      fw.textContent = e[Math.floor(Math.random()*e.length)];
+      fw.style.cssText = 'left:'+Math.random()*88+'%;top:'+Math.random()*75+'%;font-size:'+(16+Math.random()*16)+'px;animation-delay:'+Math.random()*0.4+'s';
+      c.appendChild(fw); setTimeout(function(){ fw.remove(); }, 2000);
+    }, i*80);
+  })(i);
+}
+function fanfare() {
+  try {
+    var a = new (window.AudioContext||window.webkitAudioContext)();
+    [523,659,784,1047].forEach(function(f,i){
+      var o=a.createOscillator(), g=a.createGain();
+      o.connect(g); g.connect(a.destination);
+      o.frequency.value=f; o.type='triangle';
+      var t=a.currentTime+i*0.13;
+      g.gain.setValueAtTime(0.25,t); g.gain.exponentialRampToValueAtTime(0.001,t+0.35);
+      o.start(t); o.stop(t+0.35);
+    });
+  } catch(e){}
+}
+
+// ══════════════════════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', function() {
+  var W = window.innerWidth;
+  var H = window.innerHeight;
+  var app = document.getElementById('app');
+  app.style.width  = W + 'px';
+  app.style.height = H + 'px';
+  document.querySelectorAll('.screen').forEach(function(s) {
+    s.style.width  = W + 'px';
+    s.style.height = H + 'px';
+  });
+  window._portraitW = W;
+  window._portraitH = H;
+
+  function applyTransform() {
+    var angle = window.orientation || 0;
+    if (angle === 90) {
+      app.style.transform = 'rotate(-90deg) translateX(-' + H + 'px)';
+    } else if (angle === -90 || angle === 270) {
+      app.style.transform = 'rotate(90deg) translateY(-' + W + 'px)';
+    } else {
+      app.style.transform = 'none';
+    }
+  }
+  applyTransform();
+  window.addEventListener('orientationchange', function(){ setTimeout(applyTransform, 200); });
+  window.addEventListener('resize', function(){ app.style.width=W+'px'; app.style.height=H+'px'; document.querySelectorAll('.screen').forEach(function(s){s.style.width=W+'px';s.style.height=H+'px';}); applyTransform(); });
+
+  initCanvas();
+  checkUrlRoom();  // auto-detect ?room= in URL
+
+  document.getElementById('charCount').textContent = '0';
+});
 </script>
 </body>
 </html>
