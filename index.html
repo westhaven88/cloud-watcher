@@ -331,7 +331,7 @@
     <p style="color:rgba(255,255,255,0.8);font-size:11px;font-weight:700;text-transform:uppercase;margin-bottom:8px;">📤 Share this link to invite players</p>
     <a id="shareLink" href="#" onclick="copyShareLink(event)"
        style="color:#fff;font-weight:800;font-size:13px;word-break:break-all;text-decoration:underline;display:block;margin-bottom:8px;">#</a>
-    <button onclick="copyShareLink(event)" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 16px;border-radius:20px;font-family:Nunito,sans-serif;font-weight:700;font-size:13px;cursor:pointer;">📋 Copy Link</button>
+    <button onclick="copyShareLink(event)" style="background:rgba(255,255,255,0.2);border:none;color:#fff;padding:6px 16px;border-radius:20px;font-family:Nunito,sans-serif;font-weight:700;font-size:13px;cursor:pointer;">📤 Share / Copy Link</button>
     <p style="color:rgba(255,255,255,0.6);font-size:11px;margin-top:8px;">Or share room code: <strong id="displayRoomCode" style="letter-spacing:3px;color:#fff;"></strong></p>
   </div>
 
@@ -1295,6 +1295,53 @@ function fanfare() {
 // ══════════════════════════════════════════════════════
 //  INIT
 // ══════════════════════════════════════════════════════
+function copyShareLink(e) {
+  if (e) e.preventDefault();
+  var el = document.getElementById('shareLink');
+  var url = el.getAttribute('data-url') || el.textContent;
+  if (!url || url === '#') { toast('⚠️ Link not ready yet'); return; }
+
+  // On iPhone - use native share sheet if available (much better UX)
+  if (navigator.share) {
+    navigator.share({
+      title: 'Join my Cloud Watchers game!',
+      text: 'Tap the link to join my game 🌤️',
+      url: url
+    }).then(function() {
+      toast('✅ Shared!');
+    }).catch(function() {
+      // User cancelled - that's fine
+    });
+    return;
+  }
+
+  // Fallback: clipboard copy
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(url).then(function() {
+      toast('📋 Link copied! Paste it to invite friends.');
+    }).catch(function() {
+      fallbackCopy(url);
+    });
+  } else {
+    fallbackCopy(url);
+  }
+}
+
+function fallbackCopy(text) {
+  var ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;opacity:0;top:0;left:0;';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try {
+    document.execCommand('copy');
+    toast('📋 Link copied!');
+  } catch(e) {
+    toast('📋 Copy this link: ' + text);
+  }
+  document.body.removeChild(ta);
+}
+
 window.addEventListener('DOMContentLoaded', function() {
   var W = window.innerWidth;
   var H = window.innerHeight;
