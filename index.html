@@ -503,6 +503,7 @@ const CLOUD_IMAGES = [
 ];
 const AVATARS = ['🐻','🦊','🐼','🐨','🦁','🐯','🐸','🦋','🐬','🦄'];
 const AV_COLORS = ['#FF6B6B','#FFD166','#06D6A0','#74B9FF','#C77DFF','#FF9F43','#1dd1a1','#ff6b81','#54a0ff','#5f27cd'];
+// Note: no fake players - this is real multiplayer via Firebase
 const FAKE_PLAYERS = [
   {name:'SkyCrafter', avatar:'🦊', color:'#FFD166'},
   {name:'NimbusDream', avatar:'🐼', color:'#06D6A0'},
@@ -779,7 +780,7 @@ function submitDrawing(auto=false) {
   var canvas = document.getElementById('drawCanvas');
   var drawingImg = canvas.toDataURL('image/png');
   G.submissions[G.myName] = {player:G.myName, avatar:G.myAvatar, color:G.myAvatarColor, description:desc||'Something amazing!', drawing:drawingImg, votes:0, isMe:true};
-  FAKE_PLAYERS.forEach(p => { G.submissions[p.name] = {player:p.name, avatar:p.avatar, color:p.color, description:FAKE_DESCS[Math.floor(Math.random()*FAKE_DESCS.length)], drawing:null, votes:0, isMe:false}; });
+  // No fake players in multiplayer mode
   clearInterval(G.timerInterval);
   document.getElementById('submitBtn').textContent = '✅ Submitted!';
   document.getElementById('submitBtn').disabled = true;
@@ -904,7 +905,9 @@ function fanfare() {
 // ── Init ──
 function copyShareLink(e) {
   if (e) e.preventDefault();
-  var link = document.getElementById('shareLink').href;
+  // Use data-url attribute which has the clean URL without any # hash
+  var el = document.getElementById('shareLink');
+  var link = el.getAttribute('data-url') || el.href.replace(/#$/, '');
   if (navigator.clipboard) {
     navigator.clipboard.writeText(link).then(function(){ toast('📋 Link copied! Send it to your friends.'); });
   } else {
@@ -1092,6 +1095,7 @@ const CLOUD_IMAGES = [
 
 const AVATARS = ['🐻','🦊','🐼','🐨','🦁','🐯','🐸','🦋','🐬','🦄'];
 const AV_COLORS = ['#FF6B6B','#FFD166','#06D6A0','#74B9FF','#C77DFF','#FF9F43','#1dd1a1','#ff6b81','#54a0ff','#5f27cd'];
+// Note: no fake players - this is real multiplayer via Firebase
 
 // ══════════════════════════════════════════════════════
 //  LOCAL PLAYER STATE
@@ -1238,12 +1242,10 @@ function checkUrlRoom() {
 function showWaiting() {
   document.getElementById('displayRoomCode').textContent = ME.roomCode;
 
-  // Build share URL — strip any existing ?room= param first
-  var base = window.location.origin + window.location.pathname.replace(/\/$/, '');
-  // Remove trailing index.html if present
-  base = base.replace(/\/index\.html$/, '/');
-  if (!base.endsWith('/')) base += '/';
-  var shareUrl = base + '?room=' + ME.roomCode;
+  // Build share URL cleanly - always use origin + clean path
+  var pathParts = window.location.pathname.split('/').filter(function(p){ return p && p !== 'index.html'; });
+  var cleanPath = pathParts.length > 0 ? '/' + pathParts.join('/') + '/' : '/';
+  var shareUrl = window.location.origin + cleanPath + '?room=' + ME.roomCode;
 
   var shareLinkEl = document.getElementById('shareLink');
   if (shareLinkEl) {
@@ -1279,30 +1281,33 @@ function listenToRoom() {
     renderWaitingPlayers(players);
   });
 
-  // Listen to room status changes
+  // Listen to ALL room changes in real-time
   roomRef.on('value', function(snap) {
     if (!snap.exists()) return;
     var room = snap.val();
+    var newStatus = room.status;
 
-    // Status change — drive screen transitions
-    if (room.status !== currentStatus) {
-      currentStatus = room.status;
+    // Always update scores when available
+    if (room.scores) { localScores = room.scores; }
 
-      if (room.status === 'playing') {
+    // Drive screen transitions on ANY status (handles late joiners too)
+    if (newStatus !== currentStatus) {
+      currentStatus = newStatus;
+
+      if (newStatus === 'playing') {
         startRound(room);
-      } else if (room.status === 'voting') {
+      } else if (newStatus === 'voting') {
         goToVoting(room);
-      } else if (room.status === 'results') {
+      } else if (newStatus === 'results') {
         showRoundResults(room);
-      } else if (room.status === 'gameover') {
+      } else if (newStatus === 'gameover') {
         showGameOver(room);
       }
     }
 
-    // Update scores strip if in game
-    if (room.status === 'playing' && room.scores) {
-      localScores = room.scores;
-      renderScoresStrip(snap.val().players || {});
+    // Keep scores strip updated during game
+    if (newStatus === 'playing' && room.players) {
+      renderScoresStrip(room.players);
     }
   });
 }
