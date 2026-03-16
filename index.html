@@ -1,5 +1,4 @@
 <!DOCTYPE html>
-
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -9,289 +8,290 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="Cloud Watchers">
 <!-- Allow images from unsplash and fonts from google -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://images.unsplash.com https://fonts.googleapis.com https://fonts.gstatic.com;">
+<!-- CSP removed - GitHub Pages handles security; external resources load freely -->
 <meta name="referrer" content="no-referrer">
 <title>Cloud Watchers 🌤️</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⛅</text></svg>">
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Fredoka+One&family=Nunito:wght@400;600;700;800&display=swap');
+  /* Fonts loaded via <link> tag in <head> */
 
-:root {
-–sky: #87CEEB; –deep-sky: #4A90D9; –sun: #FFD166;
-–mint: #06D6A0; –lavender: #C77DFF; –dark: #1a2744;
-–card-bg: rgba(255,255,255,0.93);
-}
+  :root {
+    --sky: #87CEEB; --deep-sky: #4A90D9; --sun: #FFD166;
+    --mint: #06D6A0; --lavender: #C77DFF; --dark: #1a2744;
+    --card-bg: rgba(255,255,255,0.93);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
 
-- { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: #0d1b3e;
+    font-family: 'Nunito', sans-serif;
+  }
 
-html, body {
-width: 100%;
-height: 100%;
-overflow: hidden;
-background: #0d1b3e;
-font-family: ‘Nunito’, sans-serif;
-}
+  /* #app is the single container that gets counter-rotated in landscape.
+     JS sets its portrait pixel dimensions on load — never changes. */
+  #app {
+    position: fixed;
+    top: 0; left: 0;
+    transform-origin: top left;
+    overflow: hidden;
+    background: #0d1b3e;
+    font-family: 'Nunito', sans-serif;
+  }
 
-/* #app is the single container that gets counter-rotated in landscape.
-JS sets its portrait pixel dimensions on load — never changes. */
-#app {
-position: fixed;
-top: 0; left: 0;
-transform-origin: top left;
-overflow: hidden;
-background: #0d1b3e;
-font-family: ‘Nunito’, sans-serif;
-}
+  .screen {
+    display: none;
+    position: absolute;
+    top: 0; left: 0;
+    animation: fadeIn 0.3s ease;
+    overflow: hidden;
+  }
+  .screen.active { display: flex; }
+  @keyframes fadeIn { from{opacity:0} to{opacity:1} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
 
-.screen {
-display: none;
-position: absolute;
-top: 0; left: 0;
-animation: fadeIn 0.3s ease;
-overflow: hidden;
-}
-.screen.active { display: flex; }
-@keyframes fadeIn { from{opacity:0} to{opacity:1} }
-@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  /* ══ LOBBY ══ */
+  #screen-lobby {
+    flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,#1a3a8f 0%,#3a86ff 60%,#74b9ff 100%);
+    overflow-y:auto; padding:24px 20px; gap:20px;
+  }
+  .lobby-logo { text-align:center; }
+  .lobby-logo .sun-emoji { font-size:48px; display:block; animation:pulse 2s ease-in-out infinite; }
+  @keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
+  .lobby-logo h1 { font-family:'Fredoka One',cursive; font-size:clamp(28px,8vw,44px); color:#fff; text-shadow:0 3px 12px rgba(0,0,0,0.3); }
+  .lobby-logo p { color:rgba(255,255,255,0.8); font-size:14px; font-weight:600; margin-top:4px; }
+  .lobby-card { background:var(--card-bg); border-radius:22px; padding:22px 20px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+  .lobby-card h2 { font-family:'Fredoka One',cursive; color:var(--dark); font-size:19px; margin-bottom:13px; text-align:center; }
+  .input-group { margin-bottom:11px; }
+  .input-group label { display:block; font-size:11px; font-weight:700; color:#888; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; }
+  .input-group input { width:100%; padding:11px 14px; border:2.5px solid #e0e8ff; border-radius:12px; font-family:'Nunito',sans-serif; font-size:16px; font-weight:700; color:var(--dark); background:#f7f9ff; outline:none; transition:border-color 0.2s; }
+  .input-group input:focus { border-color:var(--deep-sky); }
+  .btn { width:100%; padding:12px; border:none; border-radius:13px; font-family:'Fredoka One',cursive; font-size:17px; cursor:pointer; transition:transform 0.12s; }
+  .btn:active { transform:scale(0.97); }
+  .btn-primary  { background:linear-gradient(135deg,#2196f3,#1565c0); color:#fff; box-shadow:0 5px 18px rgba(74,144,217,0.5); margin-top:4px; border:none; }
+  .btn-secondary{ background:linear-gradient(135deg,var(--mint),#059669); color:#fff; box-shadow:0 5px 18px rgba(6,214,160,0.35); }
+  .btn-vote     { background:linear-gradient(135deg,var(--lavender),#9333ea); color:#fff; font-size:14px; padding:10px; }
+  .divider { text-align:center; color:#bbb; font-size:12px; font-weight:700; margin:11px 0; }
 
-/* ══ LOBBY ══ */
-#screen-lobby {
-flex-direction:column; align-items:center; justify-content:center;
-background:linear-gradient(160deg,#1a3a8f 0%,#3a86ff 60%,#74b9ff 100%);
-overflow-y:auto; padding:24px 20px; gap:20px;
-}
-.lobby-logo { text-align:center; }
-.lobby-logo .sun-emoji { font-size:48px; display:block; animation:pulse 2s ease-in-out infinite; }
-@keyframes pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.08)}}
-.lobby-logo h1 { font-family:‘Fredoka One’,cursive; font-size:clamp(28px,8vw,44px); color:#fff; text-shadow:0 3px 12px rgba(0,0,0,0.3); }
-.lobby-logo p { color:rgba(255,255,255,0.8); font-size:14px; font-weight:600; margin-top:4px; }
-.lobby-card { background:var(–card-bg); border-radius:22px; padding:22px 20px; width:100%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
-.lobby-card h2 { font-family:‘Fredoka One’,cursive; color:var(–dark); font-size:19px; margin-bottom:13px; text-align:center; }
-.input-group { margin-bottom:11px; }
-.input-group label { display:block; font-size:11px; font-weight:700; color:#888; margin-bottom:4px; text-transform:uppercase; letter-spacing:0.5px; }
-.input-group input { width:100%; padding:11px 14px; border:2.5px solid #e0e8ff; border-radius:12px; font-family:‘Nunito’,sans-serif; font-size:16px; font-weight:700; color:var(–dark); background:#f7f9ff; outline:none; transition:border-color 0.2s; }
-.input-group input:focus { border-color:var(–deep-sky); }
-.btn { width:100%; padding:12px; border:none; border-radius:13px; font-family:‘Fredoka One’,cursive; font-size:17px; cursor:pointer; transition:transform 0.12s; }
-.btn:active { transform:scale(0.97); }
-.btn-primary  { background:linear-gradient(135deg,var(–deep-sky),#2563eb); color:#fff; box-shadow:0 5px 18px rgba(74,144,217,0.4); margin-top:4px; }
-.btn-secondary{ background:linear-gradient(135deg,var(–mint),#059669); color:#fff; box-shadow:0 5px 18px rgba(6,214,160,0.35); }
-.btn-vote     { background:linear-gradient(135deg,var(–lavender),#9333ea); color:#fff; font-size:14px; padding:10px; }
-.divider { text-align:center; color:#bbb; font-size:12px; font-weight:700; margin:11px 0; }
+  /* ══ WAITING ══ */
+  #screen-waiting {
+    flex-direction:column; align-items:center; justify-content:center;
+    background:linear-gradient(160deg,#06D6A0,#059669);
+    padding:24px 20px; gap:14px; overflow-y:auto;
+  }
+  .waiting-title { font-family:'Fredoka One',cursive; font-size:clamp(20px,6vw,30px); color:#fff; text-align:center; }
+  .room-code-box { background:rgba(255,255,255,0.18); border-radius:16px; padding:11px 26px; text-align:center; border:2px dashed rgba(255,255,255,0.5); }
+  .room-code-box p { color:rgba(255,255,255,0.8); font-size:11px; font-weight:700; text-transform:uppercase; }
+  .room-code-box .code { font-family:'Fredoka One',cursive; font-size:32px; color:#fff; letter-spacing:6px; }
+  .players-list { background:var(--card-bg); border-radius:16px; padding:14px; width:100%; max-width:380px; }
+  .players-list h3 { font-family:'Fredoka One',cursive; color:var(--dark); margin-bottom:10px; font-size:17px; }
+  .player-chip { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:10px; margin-bottom:6px; background:#f0f7ff; font-weight:700; color:var(--dark); font-size:13px; }
+  .player-avatar { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
+  .host-badge { margin-left:auto; background:var(--sun); color:#7a4100; font-size:10px; font-weight:800; padding:2px 7px; border-radius:18px; text-transform:uppercase; }
 
-/* ══ WAITING ══ */
-#screen-waiting {
-flex-direction:column; align-items:center; justify-content:center;
-background:linear-gradient(160deg,#06D6A0,#059669);
-padding:24px 20px; gap:14px; overflow-y:auto;
-}
-.waiting-title { font-family:‘Fredoka One’,cursive; font-size:clamp(20px,6vw,30px); color:#fff; text-align:center; }
-.room-code-box { background:rgba(255,255,255,0.18); border-radius:16px; padding:11px 26px; text-align:center; border:2px dashed rgba(255,255,255,0.5); }
-.room-code-box p { color:rgba(255,255,255,0.8); font-size:11px; font-weight:700; text-transform:uppercase; }
-.room-code-box .code { font-family:‘Fredoka One’,cursive; font-size:32px; color:#fff; letter-spacing:6px; }
-.players-list { background:var(–card-bg); border-radius:16px; padding:14px; width:100%; max-width:380px; }
-.players-list h3 { font-family:‘Fredoka One’,cursive; color:var(–dark); margin-bottom:10px; font-size:17px; }
-.player-chip { display:flex; align-items:center; gap:8px; padding:7px 10px; border-radius:10px; margin-bottom:6px; background:#f0f7ff; font-weight:700; color:var(–dark); font-size:13px; }
-.player-avatar { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; flex-shrink:0; }
-.host-badge { margin-left:auto; background:var(–sun); color:#7a4100; font-size:10px; font-weight:800; padding:2px 7px; border-radius:18px; text-transform:uppercase; }
+  /* ══ GAME SCREEN ══ */
+  #screen-game { flex-direction:column; background:#071020; overflow:hidden; }
 
-/* ══ GAME SCREEN ══ */
-#screen-game { flex-direction:column; background:#071020; overflow:hidden; }
+  /* HUD */
+  .game-hud { display:flex; align-items:center; justify-content:space-between; padding:5px 10px; background:rgba(0,0,0,0.65); gap:7px; flex-shrink:0; min-height:44px; z-index:10; }
+  .round-badge { font-family:'Fredoka One',cursive; font-size:13px; color:#fff; background:rgba(255,255,255,0.12); padding:3px 10px; border-radius:16px; white-space:nowrap; }
+  .scores-strip { display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; flex:1; padding:2px 0; }
+  .scores-strip::-webkit-scrollbar { display:none; }
+  .score-pill { background:rgba(255,255,255,0.1); border-radius:12px; padding:3px 8px; white-space:nowrap; display:flex; align-items:center; gap:4px; font-size:11px; color:rgba(255,255,255,0.85); font-weight:700; flex-shrink:0; }
+  .score-num { color:var(--sun); font-family:'Fredoka One',cursive; font-size:12px; }
+  .timer-ring { width:38px; height:38px; position:relative; flex-shrink:0; }
+  .timer-ring svg { transform:rotate(-90deg); }
+  .timer-ring circle { fill:none; stroke-width:5; stroke-linecap:round; transition:stroke-dashoffset 1s linear; }
+  .timer-ring .bg-ring { stroke:rgba(255,255,255,0.15); }
+  .timer-ring .fg-ring { stroke:var(--sun); stroke-dasharray:94.2; stroke-dashoffset:0; }
+  .timer-text { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:'Fredoka One',cursive; font-size:11px; color:#fff; }
 
-/* HUD */
-.game-hud { display:flex; align-items:center; justify-content:space-between; padding:5px 10px; background:rgba(0,0,0,0.65); gap:7px; flex-shrink:0; min-height:44px; z-index:10; }
-.round-badge { font-family:‘Fredoka One’,cursive; font-size:13px; color:#fff; background:rgba(255,255,255,0.12); padding:3px 10px; border-radius:16px; white-space:nowrap; }
-.scores-strip { display:flex; gap:4px; overflow-x:auto; scrollbar-width:none; flex:1; padding:2px 0; }
-.scores-strip::-webkit-scrollbar { display:none; }
-.score-pill { background:rgba(255,255,255,0.1); border-radius:12px; padding:3px 8px; white-space:nowrap; display:flex; align-items:center; gap:4px; font-size:11px; color:rgba(255,255,255,0.85); font-weight:700; flex-shrink:0; }
-.score-num { color:var(–sun); font-family:‘Fredoka One’,cursive; font-size:12px; }
-.timer-ring { width:38px; height:38px; position:relative; flex-shrink:0; }
-.timer-ring svg { transform:rotate(-90deg); }
-.timer-ring circle { fill:none; stroke-width:5; stroke-linecap:round; transition:stroke-dashoffset 1s linear; }
-.timer-ring .bg-ring { stroke:rgba(255,255,255,0.15); }
-.timer-ring .fg-ring { stroke:var(–sun); stroke-dasharray:94.2; stroke-dashoffset:0; }
-.timer-text { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); font-family:‘Fredoka One’,cursive; font-size:11px; color:#fff; }
+  /* ── Cloud draw area — flex:1 so it fills all vertical space between HUD and bottom panel ── */
+  .cloud-draw-area {
+    position: relative;
+    flex: 1;
+    min-height: 0;        /* critical: allows flex child to shrink below content size */
+    background: #1a3a5c;
+    overflow: hidden;
+  }
+  /* The actual cloud image — contains (not crop) so full cloud is visible */
+  #cloudImage {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;    /* fill space — real photos look better cropped than letterboxed */
+    object-position: center center;
+    display: block;
+    pointer-events: none;
+    user-select: none;
+  }
+  /* Transparent drawing canvas sits exactly over the image */
+  #drawCanvas {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+    z-index: 5;
+  }
+  .canvas-hint {
+    position: absolute; bottom:10px; left:50%; transform:translateX(-50%);
+    background:rgba(0,0,0,0.55); color:rgba(255,255,255,0.9);
+    padding:5px 14px; border-radius:16px; font-size:12px; font-weight:700;
+    pointer-events:none; z-index:8; transition:opacity 0.4s; white-space:nowrap;
+  }
+  /* Color palette floats on left */
+  .draw-toolbar {
+    position:absolute; left:7px; top:50%; transform:translateY(-50%);
+    display:flex; flex-direction:column; gap:6px; z-index:10;
+    background:rgba(0,0,0,0.5); padding:8px 5px; border-radius:16px;
+  }
+  .color-btn { width:24px; height:24px; border-radius:50%; border:3px solid transparent; cursor:pointer; transition:transform 0.15s,border-color 0.15s; flex-shrink:0; }
+  .color-btn.active { border-color:#fff; transform:scale(1.2); }
+  .undo-btn { background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:14px; cursor:pointer; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
 
-/* ── Cloud draw area — flex:1 so it fills all vertical space between HUD and bottom panel ── */
-.cloud-draw-area {
-position: relative;
-flex: 1;
-min-height: 0;        /* critical: allows flex child to shrink below content size */
-background: #1a3a5c;
-overflow: hidden;
-}
-/* The actual cloud image — contains (not crop) so full cloud is visible */
-#cloudImage {
-position: absolute;
-top: 0; left: 0;
-width: 100%;
-height: 100%;
-object-fit: cover;    /* fill space — real photos look better cropped than letterboxed */
-object-position: center center;
-display: block;
-pointer-events: none;
-user-select: none;
-}
-/* Transparent drawing canvas sits exactly over the image */
-#drawCanvas {
-position: absolute;
-top: 0; left: 0;
-width: 100%;
-height: 100%;
-touch-action: none;
-z-index: 5;
-}
-.canvas-hint {
-position: absolute; bottom:10px; left:50%; transform:translateX(-50%);
-background:rgba(0,0,0,0.55); color:rgba(255,255,255,0.9);
-padding:5px 14px; border-radius:16px; font-size:12px; font-weight:700;
-pointer-events:none; z-index:8; transition:opacity 0.4s; white-space:nowrap;
-}
-/* Color palette floats on left */
-.draw-toolbar {
-position:absolute; left:7px; top:50%; transform:translateY(-50%);
-display:flex; flex-direction:column; gap:6px; z-index:10;
-background:rgba(0,0,0,0.5); padding:8px 5px; border-radius:16px;
-}
-.color-btn { width:24px; height:24px; border-radius:50%; border:3px solid transparent; cursor:pointer; transition:transform 0.15s,border-color 0.15s; flex-shrink:0; }
-.color-btn.active { border-color:#fff; transform:scale(1.2); }
-.undo-btn { background:rgba(255,255,255,0.15); border:none; color:#fff; font-size:14px; cursor:pointer; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center; }
+  /* ── Bottom panel: description + submit ── */
+  .bottom-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 8px 10px 12px;
+    background: rgba(0,0,0,0.75);
+    flex-shrink: 0;       /* never shrink */
+    flex-grow: 0;         /* never grow */
+    z-index: 10;
+    /* Fixed height so cloud area always leaves room for it */
+    min-height: 110px;
+    max-height: 110px;
+  }
+  .bottom-panel-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+  }
+  .bottom-panel textarea {
+    flex: 1;
+    background: rgba(255,255,255,0.1);
+    border: 2px solid rgba(255,255,255,0.2);
+    border-radius: 10px;
+    color: #fff;
+    font-family: 'Nunito', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    padding: 8px 10px;
+    resize: none;
+    height: 44px;
+    outline: none;
+    transition: border-color 0.2s;
+    line-height: 1.3;
+  }
+  .bottom-panel textarea::placeholder { color: rgba(255,255,255,0.3); }
+  .bottom-panel textarea:focus { border-color: var(--deep-sky); }
+  .char-lbl { font-size: 10px; color: rgba(255,255,255,0.4); font-weight: 700; white-space: nowrap; }
+  /* Full-width button — always fully visible, easy to tap */
+  .submit-btn {
+    width: 100%;
+    padding: 13px;
+    background: linear-gradient(135deg, var(--mint), #059669);
+    border: none;
+    color: #fff;
+    font-family: 'Fredoka One', cursive;
+    font-size: 17px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: transform 0.12s, opacity 0.12s;
+    letter-spacing: 0.3px;
+  }
+  .submit-btn:active { transform: scale(0.97); }
+  .submit-btn:disabled { opacity: 0.45; cursor: default; }
 
-/* ── Bottom panel: description + submit ── */
-.bottom-panel {
-display: flex;
-flex-direction: column;
-gap: 6px;
-padding: 8px 10px 12px;
-background: rgba(0,0,0,0.75);
-flex-shrink: 0;       /* never shrink */
-flex-grow: 0;         /* never grow */
-z-index: 10;
-/* Fixed height so cloud area always leaves room for it */
-min-height: 110px;
-max-height: 110px;
-}
-.bottom-panel-row {
-display: flex;
-align-items: center;
-gap: 7px;
-}
-.bottom-panel textarea {
-flex: 1;
-background: rgba(255,255,255,0.1);
-border: 2px solid rgba(255,255,255,0.2);
-border-radius: 10px;
-color: #fff;
-font-family: ‘Nunito’, sans-serif;
-font-size: 13px;
-font-weight: 600;
-padding: 8px 10px;
-resize: none;
-height: 44px;
-outline: none;
-transition: border-color 0.2s;
-line-height: 1.3;
-}
-.bottom-panel textarea::placeholder { color: rgba(255,255,255,0.3); }
-.bottom-panel textarea:focus { border-color: var(–deep-sky); }
-.char-lbl { font-size: 10px; color: rgba(255,255,255,0.4); font-weight: 700; white-space: nowrap; }
-/* Full-width button — always fully visible, easy to tap */
-.submit-btn {
-width: 100%;
-padding: 13px;
-background: linear-gradient(135deg, var(–mint), #059669);
-border: none;
-color: #fff;
-font-family: ‘Fredoka One’, cursive;
-font-size: 17px;
-border-radius: 12px;
-cursor: pointer;
-transition: transform 0.12s, opacity 0.12s;
-letter-spacing: 0.3px;
-}
-.submit-btn:active { transform: scale(0.97); }
-.submit-btn:disabled { opacity: 0.45; cursor: default; }
+  /* ══ VOTING ══ */
+  #screen-voting { flex-direction:column; background:linear-gradient(160deg,#3b0764,#7c3aed); overflow:hidden; }
+  .voting-header { padding:12px 16px 8px; background:rgba(0,0,0,0.25); text-align:center; flex-shrink:0; }
+  .voting-header h2 { font-family:'Fredoka One',cursive; color:#fff; font-size:clamp(17px,5vw,24px); }
+  .voting-header p { color:rgba(255,255,255,0.7); font-size:12px; font-weight:600; margin-top:2px; }
+  .submissions-grid { padding:10px 12px 28px; display:flex; flex-direction:column; gap:10px; overflow-y:scroll; flex:1; min-height:0; }
+  .submission-card { background:rgba(255,255,255,0.1); border-radius:15px; border:2px solid rgba(255,255,255,0.1); transition:border-color 0.2s,transform 0.2s; }
+  .submission-card.selected { border-color:var(--sun); transform:scale(1.015); background:rgba(255,209,102,0.12); }
+  .submission-card.my-card { opacity:0.5; pointer-events:none; }
+  .submission-top { display:flex; align-items:center; padding:9px 12px 5px; gap:8px; }
+  .sub-avatar { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; }
+  .sub-player-name { font-family:'Fredoka One',cursive; color:#fff; font-size:15px; }
+  .my-tag { margin-left:auto; background:rgba(255,255,255,0.18); color:rgba(255,255,255,0.7); font-size:10px; font-weight:800; padding:2px 7px; border-radius:16px; text-transform:uppercase; }
+  .sub-canvas-preview { margin:0 12px; background:rgba(255,255,255,0.06); border-radius:8px; height:58px; display:flex; align-items:center; justify-content:center; font-size:28px; }
+  .sub-description { padding:6px 12px 5px; color:rgba(255,255,255,0.82); font-size:12px; font-weight:600; font-style:italic; }
+  .sub-description::before{content:'"'} .sub-description::after{content:'"'}
+  .vote-btn-row { padding:6px 12px 12px; } .vote-btn-row .btn { width:100%; }
 
-/* ══ VOTING ══ */
-#screen-voting { flex-direction:column; background:linear-gradient(160deg,#3b0764,#7c3aed); overflow:hidden; }
-.voting-header { padding:12px 16px 8px; background:rgba(0,0,0,0.25); text-align:center; flex-shrink:0; }
-.voting-header h2 { font-family:‘Fredoka One’,cursive; color:#fff; font-size:clamp(17px,5vw,24px); }
-.voting-header p { color:rgba(255,255,255,0.7); font-size:12px; font-weight:600; margin-top:2px; }
-.submissions-grid { padding:10px 12px 28px; display:flex; flex-direction:column; gap:10px; overflow-y:scroll; flex:1; min-height:0; }
-.submission-card { background:rgba(255,255,255,0.1); border-radius:15px; border:2px solid rgba(255,255,255,0.1); transition:border-color 0.2s,transform 0.2s; }
-.submission-card.selected { border-color:var(–sun); transform:scale(1.015); background:rgba(255,209,102,0.12); }
-.submission-card.my-card { opacity:0.5; pointer-events:none; }
-.submission-top { display:flex; align-items:center; padding:9px 12px 5px; gap:8px; }
-.sub-avatar { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; }
-.sub-player-name { font-family:‘Fredoka One’,cursive; color:#fff; font-size:15px; }
-.my-tag { margin-left:auto; background:rgba(255,255,255,0.18); color:rgba(255,255,255,0.7); font-size:10px; font-weight:800; padding:2px 7px; border-radius:16px; text-transform:uppercase; }
-.sub-canvas-preview { margin:0 12px; background:rgba(255,255,255,0.06); border-radius:8px; height:58px; display:flex; align-items:center; justify-content:center; font-size:28px; }
-.sub-description { padding:6px 12px 5px; color:rgba(255,255,255,0.82); font-size:12px; font-weight:600; font-style:italic; }
-.sub-description::before{content:’”’} .sub-description::after{content:’”’}
-.vote-btn-row { padding:6px 12px 12px; } .vote-btn-row .btn { width:100%; }
+  /* ══ RESULTS ══ */
+  #screen-results { flex-direction:column; align-items:center; background:linear-gradient(160deg,#0f2460,#1a3a8f); overflow-y:auto; padding:18px 18px 24px; gap:13px; }
+  .fireworks-container { position:fixed; inset:0; pointer-events:none; z-index:100; }
+  .firework { position:absolute; animation:fwAnim 1.5s ease-out forwards; }
+  @keyframes fwAnim{0%{transform:scale(0) translateY(0);opacity:1}50%{opacity:1}100%{transform:scale(1.4) translateY(-50px);opacity:0}}
+  .round-indicator { display:flex; gap:6px; }
+  .round-dot { width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,0.2); transition:background 0.3s; }
+  .round-dot.done { background:var(--mint); }
+  .round-dot.current { background:var(--sun); transform:scale(1.3); }
+  .winner-card { background:linear-gradient(135deg,rgba(20,30,80,0.9),rgba(10,20,60,0.95)); border:3px solid #FFD700; border-radius:22px; padding:18px; text-align:center; width:100%; max-width:380px; animation:wGlow 2s ease-in-out infinite; }
+  @keyframes wGlow{0%,100%{box-shadow:0 0 30px rgba(255,209,102,0.2)}50%{box-shadow:0 0 50px rgba(255,209,102,0.45)}}
+  .trophy { font-size:44px; display:block; animation:bounce 1s ease-in-out infinite; }
+  @keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
+  .winner-name { font-family:'Fredoka One',cursive; font-size:clamp(20px,6vw,28px); color:#FFD700; text-shadow:0 1px 8px rgba(255,200,0,0.4); margin-top:5px; }
+  .winner-desc { color:rgba(255,255,255,0.8); font-size:13px; margin-top:4px; font-style:italic; font-weight:600; }
+  .winner-votes { margin-top:8px; display:inline-block; background:rgba(255,215,0,0.15); border:2px solid #FFD700; color:#FFD700; font-family:'Fredoka One',cursive; font-size:15px; padding:4px 15px; border-radius:16px; }
+  .round-scores { background:rgba(255,255,255,0.08); border-radius:15px; padding:14px; width:100%; max-width:380px; }
+  .round-scores h3 { font-family:'Fredoka One',cursive; color:#fff; font-size:17px; margin-bottom:10px; text-align:center; }
+  .score-row { display:flex; align-items:center; gap:7px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.07); }
+  .score-row:last-child { border-bottom:none; }
+  .score-rank { font-family:'Fredoka One',cursive; font-size:17px; width:24px; text-align:center; }
+  .score-player { flex:1; color:#fff; font-weight:700; font-size:13px; }
+  .score-bar-wrap { flex:2; background:rgba(255,255,255,0.1); border-radius:20px; height:6px; overflow:hidden; }
+  .score-bar { height:100%; border-radius:20px; background:linear-gradient(90deg,var(--deep-sky),var(--lavender)); transition:width 1s ease; }
+  .score-total { font-family:'Fredoka One',cursive; color:var(--sun); font-size:15px; min-width:26px; text-align:right; }
 
-/* ══ RESULTS ══ */
-#screen-results { flex-direction:column; align-items:center; background:linear-gradient(160deg,#0f2460,#1a3a8f); overflow-y:auto; padding:18px 18px 24px; gap:13px; }
-.fireworks-container { position:fixed; inset:0; pointer-events:none; z-index:100; }
-.firework { position:absolute; animation:fwAnim 1.5s ease-out forwards; }
-@keyframes fwAnim{0%{transform:scale(0) translateY(0);opacity:1}50%{opacity:1}100%{transform:scale(1.4) translateY(-50px);opacity:0}}
-.round-indicator { display:flex; gap:6px; }
-.round-dot { width:9px; height:9px; border-radius:50%; background:rgba(255,255,255,0.2); transition:background 0.3s; }
-.round-dot.done { background:var(–mint); }
-.round-dot.current { background:var(–sun); transform:scale(1.3); }
-.winner-card { background:linear-gradient(135deg,rgba(255,209,102,0.18),rgba(255,255,255,0.07)); border:3px solid var(–sun); border-radius:22px; padding:18px; text-align:center; width:100%; max-width:380px; animation:wGlow 2s ease-in-out infinite; }
-@keyframes wGlow{0%,100%{box-shadow:0 0 30px rgba(255,209,102,0.2)}50%{box-shadow:0 0 50px rgba(255,209,102,0.45)}}
-.trophy { font-size:44px; display:block; animation:bounce 1s ease-in-out infinite; }
-@keyframes bounce{0%,100%{transform:translateY(0)}50%{transform:translateY(-7px)}}
-.winner-name { font-family:‘Fredoka One’,cursive; font-size:clamp(20px,6vw,28px); color:var(–sun); margin-top:5px; }
-.winner-desc { color:rgba(255,255,255,0.8); font-size:13px; margin-top:4px; font-style:italic; font-weight:600; }
-.winner-votes { margin-top:8px; display:inline-block; background:var(–sun); color:#7a4100; font-family:‘Fredoka One’,cursive; font-size:15px; padding:4px 15px; border-radius:16px; }
-.round-scores { background:rgba(255,255,255,0.08); border-radius:15px; padding:14px; width:100%; max-width:380px; }
-.round-scores h3 { font-family:‘Fredoka One’,cursive; color:#fff; font-size:17px; margin-bottom:10px; text-align:center; }
-.score-row { display:flex; align-items:center; gap:7px; padding:6px 0; border-bottom:1px solid rgba(255,255,255,0.07); }
-.score-row:last-child { border-bottom:none; }
-.score-rank { font-family:‘Fredoka One’,cursive; font-size:17px; width:24px; text-align:center; }
-.score-player { flex:1; color:#fff; font-weight:700; font-size:13px; }
-.score-bar-wrap { flex:2; background:rgba(255,255,255,0.1); border-radius:20px; height:6px; overflow:hidden; }
-.score-bar { height:100%; border-radius:20px; background:linear-gradient(90deg,var(–deep-sky),var(–lavender)); transition:width 1s ease; }
-.score-total { font-family:‘Fredoka One’,cursive; color:var(–sun); font-size:15px; min-width:26px; text-align:right; }
+  /* ══ GAME OVER ══ */
+  #screen-gameover { flex-direction:column; align-items:center; background:linear-gradient(160deg,#7f1d1d,#dc2626); overflow-y:auto; padding:28px 18px; gap:15px; }
+  #screen-gameover h1 { font-family:'Fredoka One',cursive; color:#fff; font-size:clamp(24px,7vw,40px); text-align:center; }
+  .champion-card { background:var(--card-bg); border-radius:20px; padding:20px; width:100%; max-width:380px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
+  .champion-card .big-trophy { font-size:56px; display:block; }
+  .champion-card h2 { font-family:'Fredoka One',cursive; color:var(--dark); font-size:24px; margin-top:5px; }
+  .champion-card p { color:#666; font-weight:700; font-size:13px; margin-top:3px; }
+  .final-scores { background:rgba(255,255,255,0.12); border-radius:15px; padding:15px; width:100%; max-width:380px; }
+  .final-scores h3 { font-family:'Fredoka One',cursive; color:#fff; font-size:17px; margin-bottom:10px; text-align:center; }
 
-/* ══ GAME OVER ══ */
-#screen-gameover { flex-direction:column; align-items:center; background:linear-gradient(160deg,#7f1d1d,#dc2626); overflow-y:auto; padding:28px 18px; gap:15px; }
-#screen-gameover h1 { font-family:‘Fredoka One’,cursive; color:#fff; font-size:clamp(24px,7vw,40px); text-align:center; }
-.champion-card { background:var(–card-bg); border-radius:20px; padding:20px; width:100%; max-width:380px; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.25); }
-.champion-card .big-trophy { font-size:56px; display:block; }
-.champion-card h2 { font-family:‘Fredoka One’,cursive; color:var(–dark); font-size:24px; margin-top:5px; }
-.champion-card p { color:#666; font-weight:700; font-size:13px; margin-top:3px; }
-.final-scores { background:rgba(255,255,255,0.12); border-radius:15px; padding:15px; width:100%; max-width:380px; }
-.final-scores h3 { font-family:‘Fredoka One’,cursive; color:#fff; font-size:17px; margin-bottom:10px; text-align:center; }
+  /* Landscape block removed — CSS transform handles orientation lock */
 
-/* Landscape block removed — CSS transform handles orientation lock */
+  /* ══ CUSTOM KEYBOARD ══ */
+  .kb-key {
+    background: #2a2a3e;
+    color: #fff;
+    border: none;
+    border-radius: 7px;
+    font-family: 'Nunito', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    min-width: 30px;
+    height: 42px;
+    flex: 1;
+    cursor: pointer;
+    transition: background 0.1s;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+  .kb-key:active { background: #4a4a6e; }
+  .kb-wide { flex: 1.5; }
 
-/* ══ CUSTOM KEYBOARD ══ */
-.kb-key {
-background: #2a2a3e;
-color: #fff;
-border: none;
-border-radius: 7px;
-font-family: ‘Nunito’, sans-serif;
-font-size: 15px;
-font-weight: 700;
-min-width: 30px;
-height: 42px;
-flex: 1;
-cursor: pointer;
-transition: background 0.1s;
--webkit-tap-highlight-color: transparent;
-user-select: none;
-}
-.kb-key:active { background: #4a4a6e; }
-.kb-wide { flex: 1.5; }
-
-/* ══ TOAST ══ */
-.toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(80px); background:rgba(10,10,20,0.92); color:#fff; padding:9px 18px; border-radius:16px; font-weight:700; font-size:13px; z-index:300; transition:transform 0.3s ease; white-space:nowrap; }
-.toast.show { transform:translateX(-50%) translateY(0); }
+  /* ══ TOAST ══ */
+  .toast { position:fixed; bottom:20px; left:50%; transform:translateX(-50%) translateY(80px); background:rgba(10,10,20,0.92); color:#fff; padding:9px 18px; border-radius:16px; font-weight:700; font-size:13px; z-index:300; transition:transform 0.3s ease; white-space:nowrap; }
+  .toast.show { transform:translateX(-50%) translateY(0); }
 </style>
-
 </head>
 <body>
 
@@ -320,7 +320,6 @@ user-select: none;
 </div>
 
 <!-- ══ WAITING ══ -->
-
 <div id="screen-waiting" class="screen">
   <div class="waiting-title">Waiting for players... ☁️</div>
   <div class="room-code-box">
@@ -340,7 +339,6 @@ user-select: none;
 </div>
 
 <!-- ══ GAME ══ -->
-
 <div id="screen-game" class="screen">
   <div class="game-hud">
     <div class="round-badge">Round <span id="roundNum">1</span>/10</div>
@@ -384,7 +382,6 @@ user-select: none;
   </div>
 
   <!-- Custom in-app keyboard overlay — no iOS keyboard, no resize events -->
-
   <div id="customKeyboard" style="display:none;position:absolute;bottom:0;left:0;width:100%;
        background:#1a1a2e;z-index:1000;padding:10px 6px 16px;box-sizing:border-box;">
     <!-- Text display -->
@@ -428,7 +425,6 @@ user-select: none;
 </div>
 
 <!-- ══ VOTING ══ -->
-
 <div id="screen-voting" class="screen">
   <div class="voting-header">
     <h2>🗳️ Vote for the Best!</h2>
@@ -438,7 +434,6 @@ user-select: none;
 </div>
 
 <!-- ══ RESULTS ══ -->
-
 <div id="screen-results" class="screen">
   <div class="fireworks-container" id="fireworksContainer"></div>
   <div class="round-indicator" id="roundIndicator"></div>
@@ -456,7 +451,6 @@ user-select: none;
 </div>
 
 <!-- ══ GAME OVER ══ -->
-
 <div id="screen-gameover" class="screen">
   <div class="fireworks-container" id="fireworksContainer2"></div>
   <h1>🎉 Game Over!</h1>
@@ -1026,6 +1020,5 @@ function updateKbDisplay() {
   document.getElementById('kbCount').textContent = kbText.length + '/50';
 }
 </script>
-
 </body>
 </html>
