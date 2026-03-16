@@ -1212,11 +1212,24 @@ function checkUrlRoom() {
   var roomCode = params.get('room');
   if (!roomCode) return;
 
-  // Pre-fill the room code and show a prompt for name
-  document.getElementById('roomCode').value = roomCode.toUpperCase();
-  // Scroll to name field
-  document.getElementById('playerName').focus();
-  toast('✅ Room ' + roomCode.toUpperCase() + ' found! Enter your name to join.', 4000);
+  roomCode = roomCode.toUpperCase();
+
+  // Pre-fill room code
+  document.getElementById('roomCode').value = roomCode;
+
+  // Show a clear message
+  toast('🎮 Room ' + roomCode + ' ready! Enter your name and tap Join Game.', 5000);
+
+  // Focus name field so user can type immediately
+  setTimeout(function() {
+    document.getElementById('playerName').focus();
+  }, 500);
+
+  // If name is already filled (e.g. returning player), auto-join
+  var existingName = document.getElementById('playerName').value.trim();
+  if (existingName) {
+    setTimeout(function() { doJoin(existingName, roomCode); }, 800);
+  }
 }
 
 // ══════════════════════════════════════════════════════
@@ -1225,12 +1238,18 @@ function checkUrlRoom() {
 function showWaiting() {
   document.getElementById('displayRoomCode').textContent = ME.roomCode;
 
-  // Show share link
-  var shareUrl = window.location.origin + window.location.pathname + '?room=' + ME.roomCode;
+  // Build share URL — strip any existing ?room= param first
+  var base = window.location.origin + window.location.pathname.replace(/\/$/, '');
+  // Remove trailing index.html if present
+  base = base.replace(/\/index\.html$/, '/');
+  if (!base.endsWith('/')) base += '/';
+  var shareUrl = base + '?room=' + ME.roomCode;
+
   var shareLinkEl = document.getElementById('shareLink');
   if (shareLinkEl) {
     shareLinkEl.textContent = shareUrl;
     shareLinkEl.href = shareUrl;
+    shareLinkEl.setAttribute('data-url', shareUrl);
   }
 
   if (ME.isHost) {
@@ -1343,6 +1362,9 @@ function startRound(room) {
   renderScoresStrip(room.players || {});
   showScreen('game');
 
+  // Host watches for all submissions
+  if (ME.isHost) watchSubmissions();
+
   // Start local 3-minute countdown
   startTimer(room.roundStartTime, function() {
     // Time's up — auto submit if not done
@@ -1414,25 +1436,21 @@ function submitDrawing(auto) {
   });
 
   toast('🎨 Submitted! Waiting for others...');
-
-  // Check if all players have submitted — host advances to voting
-  if (ME.isHost) {
-    checkAllSubmitted();
-  }
 }
 
-function checkAllSubmitted() {
-  roomRef.once('value', function(snap) {
-    var room = snap.val();
-    var players = Object.keys(room.players || {});
-    var submissions = Object.keys(room.submissions || {});
-    if (submissions.length >= players.length) {
-      // All submitted — move to voting
-      roomRef.update({ status: 'voting' });
-    } else {
-      // Check again in 3 seconds
-      setTimeout(checkAllSubmitted, 3000);
-    }
+// Listen for all submissions — every client watches this, host advances when done
+function watchSubmissions() {
+  roomRef.child('submissions').on('value', function(snap) {
+    if (currentStatus !== 'playing') return;
+    if (!ME.isHost) return; // only host advances
+    roomRef.child('players').once('value', function(playerSnap) {
+      var playerCount = playerSnap.numChildren();
+      var subCount = snap.numChildren();
+      if (subCount >= playerCount) {
+        roomRef.child('submissions').off('value'); // stop listening
+        roomRef.update({ status: 'voting' });
+      }
+    });
   });
 }
 
@@ -1441,6 +1459,7 @@ function checkAllSubmitted() {
 // ══════════════════════════════════════════════════════
 function goToVoting(room) {
   clearInterval(timerInterval);
+  if (ME.isHost) watchVotes();
   var subs = room.submissions || {};
   var grid = document.getElementById('submissionsGrid');
   grid.innerHTML = Object.values(subs).map(function(s) {
@@ -1473,21 +1492,23 @@ function castVote(name) {
   roomRef.child('votes/' + ME.playerId).set({ votedFor: name });
   toast('✅ Voted for ' + name + '!');
   document.querySelectorAll('.btn-vote').forEach(function(b){ b.disabled = true; b.style.opacity = '0.5'; });
-
-  // Host tallies once all votes are in
-  if (ME.isHost) { checkAllVoted(); }
 }
 
-function checkAllVoted() {
-  roomRef.once('value', function(snap) {
-    var room = snap.val();
-    var players = Object.keys(room.players || {});
-    var votes = Object.keys(room.votes || {});
-    if (votes.length >= players.length) {
-      tallyAndAdvance(room);
-    } else {
-      setTimeout(checkAllVoted, 3000);
-    }
+// Host watches votes in real-time
+function watchVotes() {
+  roomRef.child('votes').on('value', function(snap) {
+    if (currentStatus !== 'voting') return;
+    if (!ME.isHost) return;
+    roomRef.child('players').once('value', function(playerSnap) {
+      var playerCount = playerSnap.numChildren();
+      var voteCount = snap.numChildren();
+      if (voteCount >= playerCount) {
+        roomRef.child('votes').off('value');
+        roomRef.once('value', function(fullSnap) {
+          tallyAndAdvance(fullSnap.val());
+        });
+      }
+    });
   });
 }
 
