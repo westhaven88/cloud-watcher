@@ -456,7 +456,7 @@
     <h3>📊 Scores</h3>
     <div id="scoresList"></div>
   </div>
-  <button class="btn btn-primary" onclick="nextRound()" style="width:100%;max-width:380px;">➡️ Next Round</button>
+  <button class="btn btn-primary" id="nextRoundBtn" onclick="nextRound()" style="width:100%;max-width:380px;">➡️ Next Round</button>
 </div>
 
 <!-- ══ GAME OVER ══ -->
@@ -868,23 +868,39 @@ function submitDrawing(auto) {
     drawing: drawingImg
   });
 
-  toast('🎨 Submitted! Waiting for others...');
+  // Show waiting state on the submit button
+  document.getElementById('submitBtn').textContent = '⏳ Waiting for others...';
+  toast('🎨 Submitted!');
+
+  // Auto-advance after 30s even if host is unresponsive (safety net for all players)
+  setTimeout(function() {
+    if (currentStatus === 'playing' && ME.isHost) {
+      roomRef.update({ status: 'voting' });
+    }
+  }, 30000);
 }
 
-// Listen for all submissions — every client watches this, host advances when done
+// ALL players watch submissions — host advances instantly when all done
 function watchSubmissions() {
   roomRef.child('submissions').on('value', function(snap) {
     if (currentStatus !== 'playing') return;
-    if (!ME.isHost) return; // only host advances
+    if (!ME.isHost) return;
     roomRef.child('players').once('value', function(playerSnap) {
       var playerCount = playerSnap.numChildren();
       var subCount = snap.numChildren();
       if (subCount >= playerCount) {
-        roomRef.child('submissions').off('value'); // stop listening
+        roomRef.child('submissions').off('value');
         roomRef.update({ status: 'voting' });
       }
     });
   });
+
+  // Safety net: advance to voting after 3min 10sec regardless
+  setTimeout(function() {
+    if (currentStatus === 'playing' && ME.isHost) {
+      roomRef.update({ status: 'voting' });
+    }
+  }, 190000);
 }
 
 // ══════════════════════════════════════════════════════
@@ -943,6 +959,17 @@ function watchVotes() {
       }
     });
   });
+
+  // Safety net: tally after 60 seconds even if not everyone voted
+  setTimeout(function() {
+    if (currentStatus === 'voting' && ME.isHost) {
+      roomRef.once('value', function(snap) {
+        if (snap.val() && snap.val().status === 'voting') {
+          tallyAndAdvance(snap.val());
+        }
+      });
+    }
+  }, 60000);
 }
 
 function tallyAndAdvance(room) {
@@ -1010,10 +1037,33 @@ function showRoundResults(room) {
 
   showScreen('results');
   if ((tally[winner]||0) > 0) { launchFireworks('fireworksContainer'); fanfare(); }
+
+  // Auto-advance after 12 seconds — no one needs to tap anything
+  var autoAdvanceTimer = setTimeout(function() {
+    if (currentStatus === 'results') nextRound();
+  }, 12000);
+
+  // Update button to show countdown
+  var btn = document.getElementById('nextRoundBtn');
+  if (btn) {
+    var secs = 12;
+    var countdownInterval = setInterval(function() {
+      secs--;
+      if (btn && secs > 0) {
+        btn.textContent = '➡️ Next Round (' + secs + 's)';
+      } else {
+        clearInterval(countdownInterval);
+        if (btn) btn.textContent = '➡️ Next Round';
+      }
+    }, 1000);
+  }
 }
 
 function nextRound() {
-  if (!ME.isHost) return; // only host advances
+  if (!ME.isHost) {
+    toast('⏳ Waiting for host to start next round...');
+    return;
+  }
   roomRef.once('value', function(snap) {
     var room = snap.val();
     var nextRoundNum = room.round + 1;
