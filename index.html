@@ -749,18 +749,22 @@ function listenToRoom() {
     // Always update scores when available
     if (room.scores) { localScores = room.scores; }
 
-    // Drive screen transitions on ANY status (handles late joiners too)
+    // Drive screen transitions — always re-fetch fresh data so cloudIndex
+    // and submissions are guaranteed current, never stale from this snapshot
     if (newStatus !== currentStatus) {
       currentStatus = newStatus;
 
       if (newStatus === 'playing') {
-        startRound(room);
+        roomRef.once('value', function(fresh) { startRound(fresh.val()); });
       } else if (newStatus === 'voting') {
-        goToVoting(room);
+        roomRef.once('value', function(fresh) { goToVoting(fresh.val()); });
       } else if (newStatus === 'results') {
-        showRoundResults(room);
+        roomRef.once('value', function(fresh) { showRoundResults(fresh.val()); });
       } else if (newStatus === 'gameover') {
-        showGameOver(room);
+        roomRef.once('value', function(fresh) { showGameOver(fresh.val()); });
+      } else if (newStatus === 'abandoned') {
+        toast('⚠️ Host disconnected. Game ended.', 4000);
+        setTimeout(function() { playAgain(); }, 4000);
       }
     }
 
