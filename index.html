@@ -734,6 +734,11 @@ function listenToRoom() {
   currentStatus = 'waiting'; // reset for new session
   localScores = {};
 
+  // Get Firebase server time offset to correct local clock differences
+  db.ref('.info/serverTimeOffset').on('value', function(snap) {
+    serverTimeOffset = snap.val() || 0;
+  });
+
   // Listen to player list changes
   roomRef.child('players').on('value', function(snap) {
     var players = snap.val() || {};
@@ -847,13 +852,24 @@ function startRound(room) {
   // Host watches for all submissions
   if (ME.isHost) watchSubmissions();
 
-  // Start local 3-minute countdown
-  startTimer(room.roundStartTime, function() {
-    // Time's up — auto submit if not done
-    if (!document.getElementById('submitBtn').disabled) {
-      submitDrawing(true);
+  // roundStartTime is a server timestamp — may be unresolved sentinel if read too fast.
+  // Re-fetch just that value to make sure it's a real ms timestamp before starting timer.
+  db.ref('rooms/' + ME.roomCode + '/roundStartTime').once('value', function(snap) {
+    var startTime = snap.val();
+    // Valid timestamp is a large positive number (ms since epoch ~= 1.7 trillion)
+    if (startTime && startTime > 1000000000000) {
+      startTimer(startTime, onTimerExpire);
+    } else {
+      // Fallback: treat now as start (full 3 minutes from this moment)
+      startTimer(Date.now() + serverTimeOffset, onTimerExpire);
     }
   });
+}
+
+function onTimerExpire() {
+  if (!document.getElementById('submitBtn').disabled) {
+    submitDrawing(true);
+  }
 }
 
 function renderScoresStrip(players) {
@@ -874,6 +890,7 @@ function renderScoresStrip(players) {
 var timerInterval;
 var tallyFired = false; // guard against double tally
 var currentCloudIndex = 0; // locally cached — set in startRound, used in voting/results
+var serverTimeOffset = 0; // Firebase server time offset — corrects device clock differences
 function startTimer(serverStartTime, onExpire) {
   clearInterval(timerInterval);
   var ROUND_SECS = 180;
@@ -881,7 +898,8 @@ function startTimer(serverStartTime, onExpire) {
   var C = 94.2;
 
   timerInterval = setInterval(function() {
-    var now = Date.now();
+    // Use server-corrected time to avoid device clock drift
+    var now = Date.now() + serverTimeOffset;
     var elapsed = Math.floor((now - serverStartTime) / 1000);
     var left = Math.max(0, ROUND_SECS - elapsed);
     var m = Math.floor(left / 60), s = left % 60;
