@@ -945,7 +945,10 @@ function watchSubmissions() {
       }
       if (subCount >= playerCount && ME.isHost) {
         roomRef.child('submissions').off('value');
-        roomRef.update({ status: 'voting' });
+        // Small delay so all submission writes fully land before status changes
+        setTimeout(function() {
+          roomRef.update({ status: 'voting' });
+        }, 1500);
       }
     });
   });
@@ -964,6 +967,21 @@ function watchSubmissions() {
 function goToVoting(room) {
   clearInterval(timerInterval);
   if (ME.isHost) watchVotes();
+  var subs = room.submissions || {};
+  // If submissions are empty (race condition), wait and retry once
+  if (Object.keys(subs).length === 0) {
+    setTimeout(function() {
+      roomRef.once('value', function(fresh) {
+        renderVotingCards(fresh.val());
+      });
+    }, 2000);
+  } else {
+    renderVotingCards(room);
+  }
+  showScreen('voting');
+}
+
+function renderVotingCards(room) {
   var subs = room.submissions || {};
   var grid = document.getElementById('submissionsGrid');
   grid.innerHTML = Object.values(subs).map(function(s) {
@@ -987,7 +1005,6 @@ function goToVoting(room) {
       (!isMe ? '<div class="vote-btn-row"><button class="btn btn-vote" onclick="event.stopPropagation();castVote(\'' + s.name + '\')">👆 Vote for ' + s.name + '!</button></div>' : '') +
       '</div>';
   }).join('');
-  showScreen('voting');
 }
 
 function selectVote(name) {
