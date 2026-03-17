@@ -818,6 +818,8 @@ function launchGameStart() {
 //  ROUND START
 // ══════════════════════════════════════════════════════
 function startRound(room) {
+  // Cache cloud index locally — this is the source of truth for this round
+  currentCloudIndex = (typeof room.cloudIndex === 'number') ? room.cloudIndex : 0;
   // Reset local state
   tallyFired = false;
   kbText = '';
@@ -836,7 +838,8 @@ function startRound(room) {
     var next = CLOUD_IMAGES[Math.floor(Math.random() * CLOUD_IMAGES.length)];
     img.src = next;
   };
-  img.src = CLOUD_IMAGES[room.cloudIndex] || CLOUD_IMAGES[0];
+  // Use locally cached index — guaranteed correct for this round
+  img.src = CLOUD_IMAGES[currentCloudIndex] || CLOUD_IMAGES[0];
 
   renderScoresStrip(room.players || {});
   showScreen('game');
@@ -870,6 +873,7 @@ function renderScoresStrip(players) {
 // ══════════════════════════════════════════════════════
 var timerInterval;
 var tallyFired = false; // guard against double tally
+var currentCloudIndex = 0; // locally cached — set in startRound, used in voting/results
 function startTimer(serverStartTime, onExpire) {
   clearInterval(timerInterval);
   var ROUND_SECS = 180;
@@ -971,7 +975,7 @@ function goToVoting(room) {
         (isMe ? '<span class="my-tag">You</span>' : '') +
       '</div>' +
       (function() {
-        var cloudUrl = CLOUD_IMAGES[room.cloudIndex] || '';
+        var cloudUrl = CLOUD_IMAGES[currentCloudIndex] || ''; // use locally cached index
         var p = '<div class="sub-canvas-preview">';
         if (cloudUrl) p += '<img class="cloud-bg" src="' + cloudUrl + '" referrerpolicy="no-referrer">';
         if (s.drawing) p += '<img class="drawing-overlay" src="' + s.drawing + '">';
@@ -1085,7 +1089,7 @@ function showRoundResults(room) {
   document.getElementById('winnerVotes').textContent = (tally[winner] || 0) + ' vote' + ((tally[winner] || 0) !== 1 ? 's' : '');
   // Show winner's drawing on results screen
   var winnerDrawEl = document.getElementById('winnerDrawing');
-  var cloudUrl = CLOUD_IMAGES[room.cloudIndex] || '';
+  var cloudUrl = CLOUD_IMAGES[currentCloudIndex] || '';
   if (winnerDrawEl) {
     winnerDrawEl.innerHTML = '';
     if (cloudUrl) {
