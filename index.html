@@ -228,7 +228,31 @@
   .sub-avatar { width:30px; height:30px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:15px; }
   .sub-player-name { font-family:'Fredoka One',cursive; color:#fff; font-size:15px; }
   .my-tag { margin-left:auto; background:rgba(255,255,255,0.18); color:rgba(255,255,255,0.7); font-size:10px; font-weight:800; padding:2px 7px; border-radius:16px; text-transform:uppercase; }
-  .sub-canvas-preview { margin:0 12px; background:rgba(255,255,255,0.06); border-radius:8px; height:120px; display:flex; align-items:center; justify-content:center; font-size:28px; overflow:hidden; }
+  .sub-canvas-preview {
+    margin: 0 12px;
+    border-radius: 8px;
+    height: 140px;
+    overflow: hidden;
+    position: relative;   /* for layering photo + drawing */
+    background: #1a3a5c;  /* fallback sky colour */
+  }
+  .sub-canvas-preview .cloud-bg {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center;
+    border-radius: 8px;
+  }
+  .sub-canvas-preview .drawing-overlay {
+    position: absolute; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+  .sub-canvas-preview .no-drawing {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 28px; opacity: 0.4;
+  }
   .sub-description { padding:6px 12px 5px; color:rgba(255,255,255,0.82); font-size:12px; font-weight:600; font-style:italic; }
   .sub-description::before{content:'"'} .sub-description::after{content:'"'}
   .vote-btn-row { padding:6px 12px 12px; } .vote-btn-row .btn { width:100%; }
@@ -449,6 +473,8 @@
   <div class="winner-card">
     <span class="trophy">🏆</span>
     <div class="winner-name" id="winnerName">CloudDreamer99</div>
+    <!-- Winner's drawing shown here -->
+    <div id="winnerDrawing" class="sub-canvas-preview" style="margin:10px auto;width:85%;max-width:340px;"></div>
     <div class="winner-desc" id="winnerDesc">"A fluffy elephant"</div>
     <div class="winner-votes" id="winnerVotes">3 votes</div>
   </div>
@@ -571,7 +597,7 @@ function hostGame() {
   ME.roomCode = randCode();
 
   // Write room to Firebase
-  var roomRef = db.ref('rooms/' + ME.roomCode);
+  roomRef = db.ref('rooms/' + ME.roomCode);
   roomRef.set({
     host: ME.playerId,
     status: 'waiting',     // waiting | playing | voting | results | gameover
@@ -584,9 +610,11 @@ function hostGame() {
   });
 
   // Add host as first player
-  roomRef.child('players/' + ME.playerId).set({
-    name: ME.name, avatar: ME.avatar, color: ME.color, joinedAt: Date.now()
-  });
+  var hostPlayerRef = roomRef.child('players/' + ME.playerId);
+  hostPlayerRef.set({ name: ME.name, avatar: ME.avatar, color: ME.color, joinedAt: Date.now() });
+  hostPlayerRef.onDisconnect().remove();
+  // If host disconnects, mark room as abandoned
+  roomRef.child('status').onDisconnect().set('abandoned');
 
   // Build share URL
   var shareUrl = window.location.origin + window.location.pathname + '?room=' + ME.roomCode;
@@ -627,9 +655,10 @@ function doJoin(name, code) {
     }
 
     // Add player
-    db.ref('rooms/' + code + '/players/' + ME.playerId).set({
-      name: ME.name, avatar: ME.avatar, color: ME.color, joinedAt: Date.now()
-    });
+    var playerRef = db.ref('rooms/' + code + '/players/' + ME.playerId);
+    playerRef.set({ name: ME.name, avatar: ME.avatar, color: ME.color, joinedAt: Date.now() });
+    // Auto-remove player if they disconnect
+    playerRef.onDisconnect().remove();
 
     listenToRoom();
     showWaiting();
@@ -702,6 +731,8 @@ var localScores = {};
 
 function listenToRoom() {
   roomRef = db.ref('rooms/' + ME.roomCode);
+  currentStatus = 'waiting'; // reset for new session
+  localScores = {};
 
   // Listen to player list changes
   roomRef.child('players').on('value', function(snap) {
@@ -758,6 +789,16 @@ function renderWaitingPlayers(players) {
 // ══════════════════════════════════════════════════════
 function startGame() {
   if (!ME.isHost) return;
+  // Need at least 2 players
+  roomRef.child('players').once('value', function(snap) {
+    if (snap.numChildren() < 2) {
+      toast('⚠️ Need at least 2 players to start!', 3000);
+      return;
+    }
+    launchGameStart();
+  });
+}
+function launchGameStart() {
   var cloudIdx = Math.floor(Math.random() * CLOUD_IMAGES.length);
   roomRef.update({
     status: 'playing',
@@ -774,6 +815,7 @@ function startGame() {
 // ══════════════════════════════════════════════════════
 function startRound(room) {
   // Reset local state
+  tallyFired = false;
   kbText = '';
   var descSpan = document.getElementById('descriptionText');
   if (descSpan) { descSpan.textContent = 'Tap to describe what you see...'; descSpan.style.opacity = '0.5'; }
@@ -823,6 +865,7 @@ function renderScoresStrip(players) {
 //  TIMER
 // ══════════════════════════════════════════════════════
 var timerInterval;
+var tallyFired = false; // guard against double tally
 function startTimer(serverStartTime, onExpire) {
   clearInterval(timerInterval);
   var ROUND_SECS = 180;
@@ -880,15 +923,19 @@ function submitDrawing(auto) {
   }, 30000);
 }
 
-// ALL players watch submissions — host advances instantly when all done
+// ALL players watch submissions — show count + host advances instantly when all done
 function watchSubmissions() {
   roomRef.child('submissions').on('value', function(snap) {
     if (currentStatus !== 'playing') return;
-    if (!ME.isHost) return;
+    var subCount = snap.numChildren();
     roomRef.child('players').once('value', function(playerSnap) {
       var playerCount = playerSnap.numChildren();
-      var subCount = snap.numChildren();
-      if (subCount >= playerCount) {
+      // Update submit button to show progress for everyone
+      var btn = document.getElementById('submitBtn');
+      if (btn && btn.disabled) {
+        btn.textContent = '⏳ ' + subCount + '/' + playerCount + ' submitted...';
+      }
+      if (subCount >= playerCount && ME.isHost) {
         roomRef.child('submissions').off('value');
         roomRef.update({ status: 'voting' });
       }
@@ -919,9 +966,15 @@ function goToVoting(room) {
         '<div class="sub-player-name">' + s.name + '</div>' +
         (isMe ? '<span class="my-tag">You</span>' : '') +
       '</div>' +
-      '<div class="sub-canvas-preview" style="height:120px;">' +
-        (s.drawing ? '<img src="' + s.drawing + '" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:6px;">' : '<span style="font-size:28px;opacity:0.4;">✏️</span>') +
-      '</div>' +
+      (function() {
+        var cloudUrl = CLOUD_IMAGES[room.cloudIndex] || '';
+        var p = '<div class="sub-canvas-preview">';
+        if (cloudUrl) p += '<img class="cloud-bg" src="' + cloudUrl + '" referrerpolicy="no-referrer">';
+        if (s.drawing) p += '<img class="drawing-overlay" src="' + s.drawing + '">';
+        else p += '<div class="no-drawing">✏️</div>';
+        p += '</div>';
+        return p;
+      })() +
       '<div class="sub-description">' + s.description + '</div>' +
       (!isMe ? '<div class="vote-btn-row"><button class="btn btn-vote" onclick="event.stopPropagation();castVote(\'' + s.name + '\')">👆 Vote for ' + s.name + '!</button></div>' : '') +
       '</div>';
@@ -973,6 +1026,8 @@ function watchVotes() {
 }
 
 function tallyAndAdvance(room) {
+  if (tallyFired) return; // prevent double-fire
+  tallyFired = true;
   var votes = room.votes || {};
   var tally = {};
   Object.values(votes).forEach(function(v) {
@@ -985,11 +1040,17 @@ function tallyAndAdvance(room) {
     scores[name] = (scores[name] || 0) + tally[name];
   });
 
-  // Find winner
-  var winner = Object.keys(tally).reduce(function(a,b){ return tally[a] > tally[b] ? a : b; }, Object.keys(tally)[0]);
-
-  var nextRound = room.round + 1;
-  var isLast = nextRound > room.totalRounds;
+  // Find winner — handle no votes and ties safely
+  var winner = '';
+  var maxVotes = 0;
+  Object.keys(tally).forEach(function(name) {
+    if (tally[name] > maxVotes) { maxVotes = tally[name]; winner = name; }
+  });
+  // If no votes at all, pick first submission as winner
+  if (!winner) {
+    var subKeys = Object.keys(room.submissions || {});
+    if (subKeys.length > 0) winner = room.submissions[subKeys[0]].name;
+  }
 
   roomRef.update({
     status: 'results',
@@ -1010,10 +1071,30 @@ function showRoundResults(room) {
   var players = room.players || {};
 
   document.getElementById('winnerName').textContent = winner;
-  // Find winner's description
-  var winnerSub = room.submissions ? room.submissions[Object.keys(room.submissions).find(function(k){ return room.submissions[k].name === winner; })] : null;
+  // Find winner's submission
+  var winnerSub = null;
+  if (room.submissions) {
+    var wKey = Object.keys(room.submissions).find(function(k){ return room.submissions[k].name === winner; });
+    if (wKey) winnerSub = room.submissions[wKey];
+  }
   document.getElementById('winnerDesc').textContent = winnerSub ? winnerSub.description : '';
   document.getElementById('winnerVotes').textContent = (tally[winner] || 0) + ' vote' + ((tally[winner] || 0) !== 1 ? 's' : '');
+  // Show winner's drawing on results screen
+  var winnerDrawEl = document.getElementById('winnerDrawing');
+  var cloudUrl = CLOUD_IMAGES[room.cloudIndex] || '';
+  if (winnerDrawEl) {
+    winnerDrawEl.innerHTML = '';
+    if (cloudUrl) {
+      var bgImg = document.createElement('img');
+      bgImg.src = cloudUrl; bgImg.className = 'cloud-bg'; bgImg.setAttribute('referrerpolicy','no-referrer');
+      winnerDrawEl.appendChild(bgImg);
+    }
+    if (winnerSub && winnerSub.drawing) {
+      var drImg = document.createElement('img');
+      drImg.src = winnerSub.drawing; drImg.className = 'drawing-overlay';
+      winnerDrawEl.appendChild(drImg);
+    }
+  }
 
   // Scores list
   var sorted = Object.values(players).sort(function(a,b){ return (scores[b.name]||0) - (scores[a.name]||0); });
@@ -1038,25 +1119,20 @@ function showRoundResults(room) {
   showScreen('results');
   if ((tally[winner]||0) > 0) { launchFireworks('fireworksContainer'); fanfare(); }
 
-  // Auto-advance after 12 seconds — no one needs to tap anything
-  var autoAdvanceTimer = setTimeout(function() {
-    if (currentStatus === 'results') nextRound();
-  }, 12000);
-
-  // Update button to show countdown
+  // Auto-advance after 12 seconds — only host actually fires nextRound()
+  // Non-host players will get the transition via Firebase listener
   var btn = document.getElementById('nextRoundBtn');
-  if (btn) {
-    var secs = 12;
-    var countdownInterval = setInterval(function() {
-      secs--;
-      if (btn && secs > 0) {
-        btn.textContent = '➡️ Next Round (' + secs + 's)';
-      } else {
-        clearInterval(countdownInterval);
-        if (btn) btn.textContent = '➡️ Next Round';
-      }
-    }, 1000);
-  }
+  var secs = 12;
+  var countdownInterval = setInterval(function() {
+    secs--;
+    if (currentStatus !== 'results') { clearInterval(countdownInterval); return; }
+    if (btn) btn.textContent = '➡️ Next Round (' + secs + 's)';
+    if (secs <= 0) {
+      clearInterval(countdownInterval);
+      if (btn) btn.textContent = '➡️ Next Round';
+      if (ME.isHost && currentStatus === 'results') nextRound();
+    }
+  }, 1000);
 }
 
 function nextRound() {
@@ -1123,8 +1199,15 @@ function showGameOver(room) {
 }
 
 function playAgain() {
-  // Remove old room and go back to lobby
-  if (roomRef) roomRef.remove();
+  if (ME.isHost && roomRef) {
+    roomRef.remove(); // host cleans up room
+  }
+  // Reset all local state
+  currentStatus = 'waiting';
+  localScores = {};
+  tallyFired = false;
+  ME = { name: '', avatar: '', color: '', roomCode: '', isHost: false, playerId: '' };
+  if (roomRef) { roomRef.off(); roomRef = null; }
   showScreen('lobby');
 }
 
@@ -1195,8 +1278,25 @@ function initCanvas() {
   };
   canvas.addEventListener('mouseup', endDraw);
   canvas.addEventListener('mouseleave', endDraw);
-  canvas.addEventListener('touchstart', function(e){ canvas.dispatchEvent(new MouseEvent('mousedown', {clientX:e.touches[0].clientX,clientY:e.touches[0].clientY})); e.preventDefault(); }, {passive:false});
-  canvas.addEventListener('touchmove', function(e){ canvas.dispatchEvent(new MouseEvent('mousemove', {clientX:e.touches[0].clientX,clientY:e.touches[0].clientY})); e.preventDefault(); }, {passive:false});
+  canvas.addEventListener('touchstart', function(e) {
+    e.preventDefault();
+    var t = e.touches[0];
+    drawing = true;
+    var pos = getXY(e, canvas); lx = pos[0]; ly = pos[1];
+    currentStroke = { color: currentColor, width: 8, points: [{x:lx,y:ly}] };
+  }, {passive:false});
+  canvas.addEventListener('touchmove', function(e) {
+    e.preventDefault();
+    if (!drawing || !currentStroke) return;
+    var pos = getXY(e, canvas); var x=pos[0],y=pos[1];
+    var ctx = getCtx();
+    ctx.strokeStyle = currentColor; ctx.lineWidth = 8;
+    ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(lx,ly); ctx.lineTo(x,y); ctx.stroke();
+    currentStroke.points.push({x:x,y:y}); lx=x; ly=y;
+    var hint = document.getElementById('canvasHint');
+    if (hint) hint.style.opacity = '0';
+  }, {passive:false});
   canvas.addEventListener('touchend', endDraw);
 }
 
@@ -1226,11 +1326,15 @@ var kbUpperCase = true;
 var kbShowNums = false;
 
 function openKeyboard() {
-  kbText = '';
+  // Preserve existing text if any (allows editing before submit)
   var span = document.getElementById('descriptionText');
   if (span && span.textContent !== 'Tap to describe what you see...') {
     kbText = span.textContent;
+  } else {
+    kbText = '';
   }
+  kbUpperCase = kbText.length === 0; // caps on if empty, lowercase if editing
+  updateShiftBtn();
   updateKbDisplay();
   document.getElementById('customKeyboard').style.display = 'block';
 }
