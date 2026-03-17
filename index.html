@@ -734,10 +734,7 @@ function listenToRoom() {
   currentStatus = 'waiting'; // reset for new session
   localScores = {};
 
-  // Get Firebase server time offset to correct local clock differences
-  db.ref('.info/serverTimeOffset').on('value', function(snap) {
-    serverTimeOffset = snap.val() || 0;
-  });
+  // serverTimeOffset is read at startup — see DOMContentLoaded
 
   // Listen to player list changes
   roomRef.child('players').on('value', function(snap) {
@@ -813,7 +810,7 @@ function launchGameStart() {
     status: 'playing',
     round: 1,
     cloudIndex: cloudIdx,
-    roundStartTime: firebase.database.ServerValue.TIMESTAMP,
+    roundStartTime: Date.now() + serverTimeOffset,
     submissions: null,
     votes: null
   });
@@ -852,18 +849,13 @@ function startRound(room) {
   // Host watches for all submissions
   if (ME.isHost) watchSubmissions();
 
-  // roundStartTime is a server timestamp — may be unresolved sentinel if read too fast.
-  // Re-fetch just that value to make sure it's a real ms timestamp before starting timer.
-  db.ref('rooms/' + ME.roomCode + '/roundStartTime').once('value', function(snap) {
-    var startTime = snap.val();
-    // Valid timestamp is a large positive number (ms since epoch ~= 1.7 trillion)
-    if (startTime && startTime > 1000000000000) {
-      startTimer(startTime, onTimerExpire);
-    } else {
-      // Fallback: treat now as start (full 3 minutes from this moment)
-      startTimer(Date.now() + serverTimeOffset, onTimerExpire);
-    }
-  });
+  // roundStartTime is a plain ms timestamp — use it directly
+  var startTime = room.roundStartTime;
+  if (!startTime || startTime < 1000000000000) {
+    // Safety fallback — should not happen with the new plain timestamp approach
+    startTime = Date.now() + serverTimeOffset;
+  }
+  startTimer(startTime, onTimerExpire);
 }
 
 function onTimerExpire() {
@@ -1201,7 +1193,7 @@ function nextRound() {
         round: nextRoundNum,
         cloudIndex: cloudIdx,
         usedClouds: newUsed,
-        roundStartTime: firebase.database.ServerValue.TIMESTAMP,
+        roundStartTime: Date.now() + serverTimeOffset,
         submissions: null,
         votes: null,
         roundWinner: null,
@@ -1490,6 +1482,12 @@ function fallbackCopy(text) {
 }
 
 window.addEventListener('DOMContentLoaded', function() {
+  // Read Firebase server time offset immediately at startup
+  // This corrects for clock differences between this device and Firebase servers
+  db.ref('.info/serverTimeOffset').on('value', function(snap) {
+    serverTimeOffset = snap.val() || 0;
+  });
+
   var W = window.innerWidth;
   var H = window.innerHeight;
   var app = document.getElementById('app');
